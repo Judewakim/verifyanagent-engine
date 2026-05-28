@@ -99,7 +99,7 @@ STATES = {
     "UT": {"name": "Utah",           "dept": "Insurance Dept.",
            "seal": "utah-seal.png",          "type": "manual",       "url": None},
     "VT": {"name": "Vermont",        "dept": "Dept. of Financial Regulation",
-           "seal": "vermont-seal.svg",       "type": "manual",       "url": None},
+           "seal": "vermont-seal.png",       "type": "manual",       "url": None},
     "VA": {"name": "Virginia",       "dept": "Bureau of Insurance",
            "seal": "virginia-seal.png",      "type": "manual",       "url": None},
     "WA": {"name": "Washington",     "dept": "Office of the Insurance Commissioner",

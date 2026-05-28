@@ -195,12 +195,22 @@ def handler(event, context):
     site_url    = f"https://{slug}.verifyanagent.com"
     build_notes = '\n'.join(errors) if errors else 'Build completed with no issues.'
 
+    # Core status update — these fields are known-good and must succeed.
     airtable_client.update(record_id, {
-        'site_status':         'built',
-        'site_url':            site_url,
-        'build_notes':         build_notes,
-        'license_numbers_ocr': _format_license_numbers(ocr_results),
+        'site_status':  'built',
+        'site_url':     site_url,
+        'build_notes':  build_notes,
     })
+
+    # Best-effort: write OCR results back to Airtable. A field-name or field-type
+    # mismatch must NOT fail the whole build — the results are also in the logs above.
+    try:
+        airtable_client.update(record_id, {
+            'license_numbers_ocr': _format_license_numbers(ocr_results),
+        })
+    except Exception as e:
+        print(f"Could not write license_numbers_ocr "
+              f"(verify the field exists and is type 'Long text'): {e}")
 
     print(f"=== BUILD COMPLETE ===")
     print(f"Site URL: {site_url}")

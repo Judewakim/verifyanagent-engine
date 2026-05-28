@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Lambda build artifacts (deps + zips are rebuilt from source, not committed)
+package/
+*.zip

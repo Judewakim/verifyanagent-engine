@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>License Verification — {{ agent_name }} | {{ agency_name }}</title>
+
+  <!-- FAVICON -->
+  <link rel="icon" type="image/png" href="logo-icon.svg" />
+
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <!-- Calendly -->
+  <link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet" />
+  <script src="https://assets.calendly.com/assets/external/widget.js" type="text/javascript" async></script>
+
+  <style>
+    /* =============================================
+       VERIFY PAGE — Page-specific styles
+       ============================================= */
+
+    /* HERO */
+    .verify-hero {
+      padding: 10rem 0 5rem;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .verify-hero .eyebrow {
+      margin-bottom: 2.5rem;
+    }
+
+    .agent-profile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.2rem;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* Replace jude-wakim.jpg with your photo — circular crop, 140×140 */
+    .agent-photo {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      object-fit: cover;
+      object-position: center top;
+      border: 3px solid var(--border);
+      display: block;
+      background: var(--surface);
+    }
+
+    .verify-name {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 400;
+      color: var(--ink);
+      margin: 0;
+      line-height: 1.1;
+    }
+
+    .agent-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--blue);
+    }
+
+    .calendly-btn {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--blue);
+      border: 1px solid var(--blue);
+      padding: 0.22rem 0.75rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.2s var(--ease), color 0.2s var(--ease);
+    }
+
+    .calendly-btn:hover {
+      background: var(--blue);
+      color: var(--white);
+    }
+
+    .agent-contact {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .contact-sep {
+      color: var(--border);
+    }
+
+    .agent-npn {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-top: -0.7rem;
+    }
+
+    .verify-tagline {
+      font-size: 0.95rem;
+      color: var(--ink-mid);
+      line-height: 1.8;
+      max-width: 680px;
+      margin: 0.4rem 0 0;
+    }
+
+    /* LICENSES SECTION */
+    .licenses {
+      background: var(--off);
+    }
+
+    .licenses .section-label {
+      margin-bottom: 2rem;
+    }
+
+    .license-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 960px) {
+      .license-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .license-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .license-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* State seal badge — swap for an <img> tag if you have a logo file */
+    .state-seal {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-serif);
+      font-size: 1.1rem;
+      font-weight: 400;
+      flex-shrink: 0;
+      letter-spacing: 0.01em;
+    }
+
+    .fl-seal {
+      background: var(--blue);
+      color: var(--white);
+    }
+
+    .state-name {
+      font-family: var(--font-serif);
+      font-size: 1.3rem;
+      font-weight: 400;
+      color: var(--ink);
+      margin: 0 0 0.2rem;
+      line-height: 1.2;
+    }
+
+    .state-dept {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+
+    .license-details {
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid var(--border);
+    }
+
+    .license-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+      gap: 1rem;
+    }
+
+    .lic-label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      flex-shrink: 0;
+    }
+
+    .lic-value {
+      font-size: 0.88rem;
+      color: var(--ink);
+      font-weight: 400;
+      text-align: right;
+    }
+
+    .lic-active {
+      color: #1a6b3a;
+      font-weight: 500;
+    }
+
+    .lic-pending {
+      color: #b08a00;
+      font-weight: 500;
+    }
+
+    .verify-btn {
+      width: 100%;
+      text-align: center;
+      padding: 0.9rem 1.5rem;
+      font-size: 0.78rem;
+    }
+
+    /* CARRIERS IMAGE */
+    .carriers-wrap {
+      width: 100%;
+      max-width: 680px;
+      margin-top: 1.5rem;
+    }
+
+    .carriers-label {
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+
+    .carriers-img {
+      width: 100%;
+      border: 1px solid var(--border);
+      display: block;
+      cursor: zoom-in;
+      transition: opacity 0.2s;
+    }
+
+    .carriers-img:hover { opacity: 0.9; }
+
+    /* CARD BUTTON ROW */
+    .card-btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .btn-outline {
+      display: inline-block;
+      background: var(--white);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-align: center;
+      padding: 0.9rem 1.5rem;
+      border: 1px solid var(--ink);
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s var(--ease), color 0.2s var(--ease);
+    }
+
+    .btn-outline:hover {
+      background: var(--ink);
+      color: var(--white);
+    }
+
+    /* LIGHTBOX */
+    .lightbox-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .lightbox-overlay.open { display: flex; }
+
+    .lightbox-overlay img {
+      max-width: 92vw;
+      max-height: 88vh;
+      object-fit: contain;
+      cursor: default;
+      display: block;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 1rem;
+      right: 1.5rem;
+      color: rgba(255,255,255,0.75);
+      font-size: 2.2rem;
+      line-height: 1;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0.4rem 0.6rem;
+      font-family: var(--font-sans);
+      font-weight: 300;
+      transition: color 0.2s;
+    }
+
+    .lightbox-close:hover { color: #fff; }
+
+    /* TESTIMONIALS CAROUSEL */
+    .testimonials {
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      padding: 3rem 0;
+      overflow: hidden;
+    }
+
+    .testimonials .section-label {
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .testimonials-track-wrap {
+      overflow: hidden;
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .testimonials-track {
+      display: flex;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
+    }
+
+    .testimonial-card {
+      flex-shrink: 0;
+      padding: 0 1rem;
+      box-sizing: border-box;
+    }
+
+    .testimonial-inner {
+      background: var(--white);
+      border: 1px solid var(--border);
+      padding: 2.5rem 2.8rem;
+      max-width: 680px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .testimonial-inner::before {
+      content: '\201C';
+      font-family: var(--font-serif);
+      font-size: 5rem;
+      line-height: 1;
+      color: var(--blue);
+      opacity: 0.18;
+      position: absolute;
+      top: 0.6rem;
+      left: 1.6rem;
+    }
+
+    .testimonial-quote {
+      font-size: 1.05rem;
+      line-height: 1.8;
+      color: var(--ink-mid);
+      margin: 0 0 1.5rem;
+      font-style: italic;
+    }
+
+    .testimonial-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .testimonial-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: var(--white);
+      font-family: var(--font-serif);
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .testimonial-name {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--ink);
+      margin: 0;
+    }
+
+    .testimonial-location {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+
+    .testimonials-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.2rem;
+      margin-top: 1.2rem;
+    }
+
+    .t-arrow {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+      flex-shrink: 0;
+    }
+
+    .t-arrow:hover {
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .t-arrow:hover svg path {
+      stroke: var(--white);
+    }
+
+    .t-arrow svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .t-arrow svg path {
+      stroke: var(--ink);
+      stroke-width: 1.8;
+      fill: none;
+      transition: stroke 0.2s;
+    }
+
+    .t-dots {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .t-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .t-dot.active {
+      background: var(--blue);
+    }
+
+    /* Responsive — tablet */
+    @media (max-width: 680px) {
+      .agent-profile {
+        max-width: 100%;
+        padding: 0 0.5rem;
+      }
+
+      .verify-tagline {
+        max-width: 100%;
+      }
+
+      .carriers-wrap {
+        max-width: 100%;
+      }
+    }
+
+    /* Responsive — mobile */
+    @media (max-width: 580px) {
+      .verify-hero {
+        padding: 8rem 0 4rem;
+      }
+
+      .license-grid {
+        grid-template-columns: 1fr;
+      }
+
+      /* Stack the two hero buttons vertically */
+      .agent-contact {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .contact-sep {
+        display: none;
+      }
+
+      /* Stack license card buttons */
+      .card-btn-row {
+        grid-template-columns: 1fr;
+      }
+
+      /* Hide testimonials on mobile */
+      .testimonials {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="#" class="logo">
+        <img src="{{ logo_full }}" alt="{{ agency_name }} Logo" class="logo-img" />
+      </a>
+      <ul class="nav-links">
+        <li><a href="/#about">About</a></li>
+        <li><a href="/#services">Services</a></li>
+        <li><a href="/#why">Why Us</a></li>
+        <li><a href="/#contact" class="nav-cta">Get a Quote</a></li>
+      </ul>
+      <button class="hamburger" id="hamburger" aria-label="Menu">
+        <span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MOBILE MENU -->
+  <!-- <div class="mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="/#about" class="mobile-link">About</a></li>
+      <li><a href="/#services" class="mobile-link">Services</a></li>
+      <li><a href="/#why" class="mobile-link">Why Us</a></li>
+      <li><a href="/#contact" class="mobile-link">Get a Quote</a></li>
+    </ul>
+  </div> -->
+
+  <!-- HERO -->
+  <section class="verify-hero">
+    <div class="container">
+      <p class="eyebrow">License Verification</p>
+      <div class="agent-profile">
+        <!-- Drop your photo file (jude-wakim.jpg) into the same folder as this file -->
+        <img src="{{ profile_pic }}" alt="{{ agent_name }}" class="agent-photo lightbox-trigger" data-src="{{ profile_pic }}" style="cursor:zoom-in;" />
+        <h1 class="verify-name">{{ agent_name }}</h1>
+        <span class="agent-badge">Licensed Life Insurance Broker<br>National Producer Number: {{ agent_npn }}</span>
+        <div class="agent-contact">
+          <a href="mailto:{{ agent_email }}" style="color:inherit;text-decoration:none;
+            border-bottom:1px solid currentColor;padding-bottom:1px;">{{ agent_email }}</a>
+          {% if calendly_url %}
+          <span class="contact-sep">|</span>
+          <a href="#"
+            onclick="Calendly.initPopupWidget({url:'{{ calendly_url }}'});return false;"
+            class="calendly-btn">Schedule a Call</a>
+          {% endif %}
+        </div>
+        <p class="verify-tagline">{{ agent_bio }}</p>
+
+        <!-- Carriers image — click to view full size -->
+        {% if carriers_img %}
+        <div class="carriers-wrap">
+          <span class="carriers-label">Carrier Partners</span>
+          <img src="{{ carriers_img }}" alt="Carrier Partners"
+              class="carriers-img lightbox-trigger" data-src="{{ carriers_img }}" />
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- LICENSE CARDS -->
+  <section class="licenses section">
+    <div class="container">
+      <p class="section-label">Active Licenses</p>
+      <div class="license-grid">
+
+      {% for state in states %}
+      <div class="license-card">
+        <div class="license-card-header">
+          <img src="/assets/{{ state.seal_filename }}" alt="State of {{ state.name }} Seal"
+              class="state-seal" style="background:none; border-radius:0; object-fit:contain;" />
+          <div>
+            <h2 class="state-name">{{ state.name }}</h2>
+            <span class="state-dept">{{ state.dept }}</span>
+          </div>
+        </div>
+
+        <div class="license-details">
+          <div class="license-row">
+            <span class="lic-label">National Producer Number</span>
+            <span class="lic-value">{{ state.npn }}</span>
+          </div>
+          <div class="license-row">
+            <span class="lic-label">License Type</span>
+            <span class="lic-value">Life &amp; Health</span>
+          </div>
+          <div class="license-row">
+            <span class="lic-label">Status</span>
+            <span class="lic-value lic-active">Active</span>
+          </div>
+        </div>
+
+        <div class="card-btn-row">
+          {% if state.cert_url %}
+          <a href="{{ state.cert_url }}" target="_blank" rel="noopener noreferrer"
+            class="btn-outline">View Certificate</a>
+          {% else %}
+          <span class="btn-outline" style="opacity:0.45;cursor:default;">Certificate Pending</span>
+          {% endif %}
+
+          {% if state.verify_url %}
+          <a href="{{ state.verify_url }}" target="_blank" rel="noopener noreferrer"
+            class="btn-primary verify-btn">Verify License →</a>
+          {% else %}
+          <span class="btn-primary verify-btn" style="opacity:0.45;cursor:default;">Verify Online</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-inner" style="grid-template-columns: 1fr 1fr;">
+      <div class="footer-brand">
+        <a href="#" class="logo">
+          <img src="{{ logo_full }}" alt="{{ agency_name }} Logo" class="logo-img" />
+        </a>
+        <p>Independent life insurance solutions for families who plan ahead.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <p><a href="mailto:{{ agent_email }}" style="color:rgba(255,255,255,0.5);
+          text-decoration:none;">{{ agent_email }}</a></p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <p>© {{ year }} {{ agency_name }}. All rights reserved. Licensed Life Insurance Agency.
+          &nbsp;|&nbsp;
+          <a href="https://verifyanagent.com" style="color:inherit;">Powered by verifyanagent.com</a>
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- LIGHTBOX OVERLAY -->
+  <div class="lightbox-overlay" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
+    <img src="" alt="Full size view" id="lightboxImg" />
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    // Lightbox for carriers image
+    const lightbox    = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+
+    document.querySelectorAll('.lightbox-trigger').forEach(el => {
+      el.addEventListener('click', () => {
+        lightboxImg.src = el.dataset.src;
+        lightbox.classList.add('open');
+      });
+    });
+
+    // Close on backdrop click or × button
+    lightbox.addEventListener('click', e => {
+      if (e.target === lightbox || e.target === document.getElementById('lightboxClose')) {
+        lightbox.classList.remove('open');
+      }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') lightbox.classList.remove('open');
+    });
+  </script>
+
+  <!-- TESTIMONIALS CAROUSEL SCRIPT -->
+  <script>
+    (function () {
+      const wrap   = document.querySelector('.testimonials-track-wrap');
+      const track  = document.getElementById('tTrack');
+      const dotsEl = document.getElementById('tDots');
+      if (!track) return;   // no testimonials section rendered — nothing to wire up
+      const cards  = track.querySelectorAll('.testimonial-card');
+      const total  = cards.length;
+      let current  = 0;
+      let timer;
+
+      // Set each card's pixel width to match the wrap
+      function setCardWidths() {
+        const w = wrap.offsetWidth;
+        cards.forEach(c => c.style.width = w + 'px');
+      }
+
+      // Build dots
+      cards.forEach((_, i) => {
+        const d = document.createElement('button');
+        d.className = 't-dot' + (i === 0 ? ' active' : '');
+        d.setAttribute('aria-label', 'Go to testimonial ' + (i + 1));
+        d.addEventListener('click', () => goTo(i));
+        dotsEl.appendChild(d);
+      });
+
+      function goTo(idx) {
+        current = (idx + total) % total;
+        track.style.transform = 'translateX(-' + (current * wrap.offsetWidth) + 'px)';
+        dotsEl.querySelectorAll('.t-dot').forEach((d, i) => {
+          d.classList.toggle('active', i === current);
+        });
+        resetTimer();
+      }
+
+      function resetTimer() {
+        clearInterval(timer);
+        timer = setInterval(() => goTo(current + 1), 6000);
+      }
+
+      document.getElementById('tPrev').addEventListener('click', () => goTo(current - 1));
+      document.getElementById('tNext').addEventListener('click', () => goTo(current + 1));
+
+      // Pause on hover
+      track.addEventListener('mouseenter', () => clearInterval(timer));
+      track.addEventListener('mouseleave', resetTimer);
+
+      // Touch/swipe support
+      let touchStartX = 0;
+      track.addEventListener('touchstart', e => {
+        touchStartX = e.touches[0].clientX;
+        clearInterval(timer);
+      }, { passive: true });
+      track.addEventListener('touchend', e => {
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) goTo(diff > 0 ? current + 1 : current - 1);
+        else resetTimer();
+      }, { passive: true });
+
+      // Recalculate on resize (e.g. orientation change)
+      window.addEventListener('resize', () => {
+        setCardWidths();
+        goTo(current);
+      });
+
+      setCardWidths();
+      resetTimer();
+    })();
+  </script>
+</body>
+</html>
