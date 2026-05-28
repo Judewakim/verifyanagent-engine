@@ -7,6 +7,36 @@ import airtable_client
 import s3_manager
 import site_generator
 import state_data
+import cert_ocr
+
+
+def _parse_license_numbers(text):
+    """
+    Parse the multi-line Airtable text format into a dict.
+
+    Input format (one state per line):
+        FL: W123456
+        TX: 1234567
+
+    Returns {'FL': 'W123456', 'TX': '1234567'}.
+    """
+    result = {}
+    if not text:
+        return result
+    for line in text.splitlines():
+        if ':' not in line:
+            continue
+        abbrev, number = line.split(':', 1)
+        abbrev = abbrev.strip().upper()
+        number = number.strip()
+        if abbrev and number:
+            result[abbrev] = number
+    return result
+
+
+def _format_license_numbers(d):
+    """Format {'FL': 'W123456'} as multi-line text for writing back to Airtable."""
+    return '\n'.join(f"{abbrev}: {num}" for abbrev, num in sorted(d.items()))
 
 
 def handler(event, context):
@@ -85,18 +115,52 @@ def handler(event, context):
         errors.append(f"CRITICAL: Asset upload failed entirely:\n{err}")
         asset_map = {'certs': {}}  # continue with empty assets
 
-    # ── 6. Build state data for each state the agent is licensed in ───────────
+    # ── 6. OCR each license_num cert to extract the state license number ─────
+    # For states whose verify URL needs a {LICENSE_NUM} (FL, LA, MO, OK as of now),
+    # we OCR the cert PDF with Claude Haiku 4.5. The manual override field always
+    # wins over OCR — that's how Jude corrects misreads.
+    print("Extracting license numbers from cert PDFs...")
+    cert_map         = asset_map.get('certs', {})
+    override_dict    = _parse_license_numbers(fields.get('license_numbers_override', ''))
+    ocr_results      = {}
+
+    for abbrev, _cert_path in cert_map.items():
+        state_info = state_data.STATES.get(abbrev)
+        if not state_info or state_info['type'] != 'license_num':
+            continue   # NPN-only and manual states don't need a license number
+        if abbrev in override_dict:
+            continue   # manual override exists — skip OCR to save the API call
+        try:
+            pdf_bytes = s3_manager.download_cert(slug, abbrev)
+            number    = cert_ocr.extract_license_number(
+                pdf_bytes, abbrev, state_info['name']
+            )
+            if number:
+                ocr_results[abbrev] = number
+            else:
+                errors.append(
+                    f"OCR could not extract a license number for {abbrev} from the cert PDF. "
+                    f"Add it manually to license_numbers_override in Airtable as '{abbrev}: <number>'."
+                )
+        except Exception as e:
+            errors.append(f"OCR step failed for {abbrev}: {e}")
+
+    # Merge: manual override wins over OCR
+    license_numbers = {**ocr_results, **override_dict}
+    print(f"License numbers resolved: {len(license_numbers)} total "
+          f"({len(ocr_results)} OCR, {len(override_dict)} override)")
+
+    # ── 7. Build state data for each state the agent is licensed in ───────────
     print("Building state license data...")
     agent_states = fields.get('states', [])   # list of state abbreviations from Airtable
     agent_npn    = str(fields.get('npn', ''))
-    cert_map     = asset_map.get('certs', {})
 
     states_for_template = state_data.build_states_for_agent(
-        agent_states, agent_npn, cert_map, errors
+        agent_states, agent_npn, cert_map, license_numbers, errors
     )
     print(f"Built data for {len(states_for_template)} states.")
 
-    # ── 7. Generate the HTML ──────────────────────────────────────────────────
+    # ── 8. Generate the HTML ──────────────────────────────────────────────────
     print("Rendering HTML template...")
     try:
         html = site_generator.render(record, slug, asset_map, states_for_template)
@@ -111,7 +175,7 @@ def handler(event, context):
         })
         return {'statusCode': 500, 'body': 'HTML generation failed'}
 
-    # ── 8. Upload the site files to S3 ────────────────────────────────────────
+    # ── 9. Upload the site files to S3 ────────────────────────────────────────
     print("Uploading site files to S3...")
     try:
         s3_manager.upload_site_files(slug, html)
@@ -125,16 +189,17 @@ def handler(event, context):
         })
         return {'statusCode': 500, 'body': 'Site upload failed'}
 
-    # ── 9. Update Airtable: build complete ────────────────────────────────────
+    # ── 10. Update Airtable: build complete ───────────────────────────────────
     # Setting site_status = 'built' triggers Airtable Automation 2,
     # which emails Jude to go review the site.
     site_url    = f"https://{slug}.verifyanagent.com"
     build_notes = '\n'.join(errors) if errors else 'Build completed with no issues.'
 
     airtable_client.update(record_id, {
-        'site_status':  'built',
-        'site_url':     site_url,
-        'build_notes':  build_notes,
+        'site_status':         'built',
+        'site_url':            site_url,
+        'build_notes':         build_notes,
+        'license_numbers_ocr': _format_license_numbers(ocr_results),
     })
 
     print(f"=== BUILD COMPLETE ===")

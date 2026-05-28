@@ -114,15 +114,17 @@ STATES = {
 }
 
 
-def build_states_for_agent(selected_states, npn, cert_map, errors):
+def build_states_for_agent(selected_states, npn, cert_map, license_numbers, errors):
     """
     Takes the list of states the agent is licensed in (from Airtable)
     and builds the data each state card in the HTML template needs.
 
-    selected_states: list like ['FL', 'SC', 'TX']
-    npn:             the agent's NPN string e.g. '22168646'
-    cert_map:        dict of uploaded certs e.g. {'FL': 'certs/FL.pdf', 'SC': 'certs/SC.pdf'}
-    errors:          list to append warnings to (doesn't stop the build)
+    selected_states:  list like ['FL', 'SC', 'TX']
+    npn:              the agent's NPN string e.g. '22168646'
+    cert_map:         dict of uploaded certs e.g. {'FL': 'certs/FL.pdf', 'SC': 'certs/SC.pdf'}
+    license_numbers:  dict of state-specific license numbers e.g. {'FL': 'W123456', 'LA': '987654'}
+                      (from OCR + manual override; only consulted for 'license_num'-type states)
+    errors:           list to append warnings to (doesn't stop the build)
 
     Returns a list of dicts, one per state, ready to be passed to the Jinja2 template.
     """
@@ -141,16 +143,19 @@ def build_states_for_agent(selected_states, npn, cert_map, errors):
         url_type = state_info['type']
 
         if url_type == 'npn' and npn:
-            # We can build this automatically
             verify_url = state_info['url'].replace('{NPN}', str(npn))
 
         elif url_type == 'license_num':
-            # We'd need a state-specific license number — we only have the NPN
-            errors.append(
-                f"{state_info['name']} ({abbrev}): 'Verify License' button disabled. "
-                f"This state's lookup URL requires the state-specific license number, "
-                f"not the NPN. Manually find and add the verify URL for this agent."
-            )
+            license_number = license_numbers.get(abbrev)
+            if license_number:
+                verify_url = state_info['url'].replace('{LICENSE_NUM}', str(license_number))
+            else:
+                errors.append(
+                    f"{state_info['name']} ({abbrev}): 'Verify License' button disabled. "
+                    f"No license number available for this state — OCR could not extract one "
+                    f"from the certificate, and no manual override was provided. "
+                    f"Add it to license_numbers_override in Airtable as '{abbrev}: <number>'."
+                )
 
         elif url_type == 'manual':
             # No parameterized URL exists for this state

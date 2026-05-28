@@ -164,6 +164,17 @@ def upload_assets(record, slug, errors):
     return asset_map
 
 
+def download_cert(slug, abbrev):
+    """
+    Downloads a previously-uploaded cert PDF from S3 and returns its raw bytes.
+    Used by the OCR step in handler.py to extract the state license number.
+    """
+    bucket = os.environ['S3_BUCKET']
+    s3_key = f"agents/{slug}/certs/{abbrev}.pdf"
+    response = s3.get_object(Bucket=bucket, Key=s3_key)
+    return response['Body'].read()
+
+
 def upload_site_files(slug, html_content):
     """
     Uploads the three files that make up the agent's website to S3:
