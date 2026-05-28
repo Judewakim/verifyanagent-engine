@@ -41,7 +41,7 @@ def render(record, slug, asset_map, states):
 
         # File references (relative URLs — files are in the same S3 folder as index.html)
         'profile_pic':   asset_map.get('profile_pic') or 'profile.jpg',
-        'logo_full':     asset_map.get('logo_full') or 'logo-full.png',
+        'logo_full':     asset_map.get('logo_full') or asset_map.get('logo_icon') or 'logo-full.png',
         'logo_icon':     asset_map.get('logo_icon') or asset_map.get('logo_full') or 'logo-full.png',
         'carriers_img':  asset_map.get('carriers_img'),   # None = don't show the section
 
