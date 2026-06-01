@@ -2,7 +2,7 @@
 
 AWS Lambda function that automatically builds and deploys a personal license-verification website for an insurance agent the moment they pay via Stripe.
 
-**Live sites look like:** `https://jude-wakim.verifyanagent.com`
+**Live sites look like:** `https://judewakim.verifyanagent.com`
 
 ---
 
