@@ -220,3 +220,6 @@ __marimo__/
 # Lambda build artifacts (deps + zips are rebuilt from source, not committed)
 package/
 *.zip
+
+# Local deploy config (API Gateway URL + Stripe webhook secret — never commit)
+.env.deploy

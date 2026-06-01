@@ -624,8 +624,13 @@
 
         <div class="license-details">
           <div class="license-row">
-            <span class="lic-label">National Producer Number</span>
-            <span class="lic-value">{{ state.npn }}</span>
+            {% if state.license_number %}
+              <span class="lic-label">License Number</span>
+              <span class="lic-value">{{ state.license_number }}</span>
+            {% else %}
+              <span class="lic-label">National Producer Number</span>
+              <span class="lic-value">{{ state.npn or '—' }}</span>
+            {% endif %}
           </div>
           <div class="license-row">
             <span class="lic-label">License Type</span>

@@ -115,10 +115,11 @@ def handler(event, context):
         errors.append(f"CRITICAL: Asset upload failed entirely:\n{err}")
         asset_map = {'certs': {}}  # continue with empty assets
 
-    # ── 6. OCR each license_num cert to extract the state license number ─────
-    # For states whose verify URL needs a {LICENSE_NUM} (FL, LA, MO, OK as of now),
-    # we OCR the cert PDF with Claude Haiku 4.5. The manual override field always
-    # wins over OCR — that's how Jude corrects misreads.
+    # ── 6. OCR every uploaded cert to extract its state license number ───────
+    # Every state card on the site displays its license number, so OCR runs on
+    # every cert in cert_map regardless of whether the state's verify URL needs
+    # the number. The manual override field always wins over OCR — that's how
+    # Jude corrects misreads.
     print("Extracting license numbers from cert PDFs...")
     cert_map         = asset_map.get('certs', {})
     override_dict    = _parse_license_numbers(fields.get('license_numbers_override', ''))
@@ -126,8 +127,8 @@ def handler(event, context):
 
     for abbrev, _cert_path in cert_map.items():
         state_info = state_data.STATES.get(abbrev)
-        if not state_info or state_info['type'] != 'license_num':
-            continue   # NPN-only and manual states don't need a license number
+        if not state_info:
+            continue   # unknown state code — skipped
         if abbrev in override_dict:
             continue   # manual override exists — skip OCR to save the API call
         try:
@@ -156,7 +157,7 @@ def handler(event, context):
     agent_npn    = str(fields.get('npn', ''))
 
     states_for_template = state_data.build_states_for_agent(
-        agent_states, agent_npn, cert_map, license_numbers, errors
+        agent_states, agent_npn, agent_name, cert_map, license_numbers, errors
     )
     print(f"Built data for {len(states_for_template)} states.")
 
