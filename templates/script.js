@@ -8,20 +8,22 @@ document.addEventListener('DOMContentLoaded', () => {
     nav.classList.toggle('scrolled', window.scrollY > 40);
   });
 
-  // Hamburger
+  // Hamburger / mobile menu (only wires up if both elements are present)
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobileMenu');
 
-  hamburger.addEventListener('click', () => mobileMenu.classList.toggle('open'));
+  if (hamburger && mobileMenu) {
+    hamburger.addEventListener('click', () => mobileMenu.classList.toggle('open'));
 
-  document.querySelectorAll('.mobile-link').forEach(l =>
-    l.addEventListener('click', () => mobileMenu.classList.remove('open'))
-  );
+    document.querySelectorAll('.mobile-link').forEach(l =>
+      l.addEventListener('click', () => mobileMenu.classList.remove('open'))
+    );
 
-  document.addEventListener('click', (e) => {
-    if (!mobileMenu.contains(e.target) && !hamburger.contains(e.target))
-      mobileMenu.classList.remove('open');
-  });
+    document.addEventListener('click', (e) => {
+      if (!mobileMenu.contains(e.target) && !hamburger.contains(e.target))
+        mobileMenu.classList.remove('open');
+    });
+  }
 
   // Reveal on scroll
   const reveals = document.querySelectorAll('.reveal');
