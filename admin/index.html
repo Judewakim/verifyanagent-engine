@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>VerifyAnAgent — Admin</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">VerifyAnAgent <strong>Admin</strong></span>
+    <span class="topbar-actions">
+      <button id="settings-btn" class="link-btn light" hidden>Settings</button>
+      <button id="logout-btn" class="link-btn light" hidden>Log out</button>
+    </span>
+  </header>
+
+  <main id="app">
+    <!-- Login -->
+    <section id="login-view" class="view">
+      <h1>Admin sign in</h1>
+      <form id="login-form" class="card">
+        <label>Email
+          <input type="email" id="email" autocomplete="username" required />
+        </label>
+        <label>Password
+          <input type="password" id="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit" class="primary">Sign in</button>
+        <p id="login-error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <!-- First-time password setup -->
+    <section id="setup-view" class="view" hidden>
+      <h1>Set your admin password</h1>
+      <form id="setup-form" class="card">
+        <p class="hint">First-time setup for <strong id="setup-email"></strong>.</p>
+        <label>New password
+          <input type="password" id="setup-password" autocomplete="new-password" required />
+        </label>
+        <label>Confirm password
+          <input type="password" id="setup-password2" autocomplete="new-password" required />
+        </label>
+        <button type="submit" class="primary">Set password &amp; sign in</button>
+        <p id="setup-error" class="error" hidden></p>
+      </form>
+    </section>
+
+    <!-- Settings -->
+    <section id="settings-view" class="view" hidden>
+      <button class="link-btn" id="settings-back">&larr; Back</button>
+      <h1>Settings</h1>
+      <p class="sub">Signed in as <strong id="settings-email"></strong></p>
+      <form id="password-form" class="card">
+        <h2 style="margin-top:0">Change password</h2>
+        <label>Current password
+          <input type="password" id="cur-password" autocomplete="current-password" required />
+        </label>
+        <label>New password
+          <input type="password" id="new-password" autocomplete="new-password" required />
+        </label>
+        <label>Confirm new password
+          <input type="password" id="new-password2" autocomplete="new-password" required />
+        </label>
+        <button type="submit" class="primary">Update password</button>
+        <p id="password-msg" hidden></p>
+      </form>
+    </section>
+
+    <!-- Agent list -->
+    <section id="list-view" class="view" hidden>
+      <h1>Clients</h1>
+      <input type="search" id="agent-filter" placeholder="Filter by name or email…" />
+      <table class="agents">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="agent-rows"></tbody>
+      </table>
+    </section>
+
+    <!-- Agent detail / editor -->
+    <section id="detail-view" class="view" hidden>
+      <button class="link-btn" id="back-btn">&larr; Back to clients</button>
+      <div id="detail-header"></div>
+      <div id="unpublished-banner" class="banner" hidden>
+        You have unpublished changes. Click <strong>Publish</strong> to push them live.
+      </div>
+
+      <div id="fields"></div>
+
+      <h2>Licensing</h2>
+      <p class="hint">For states with no automated verify link (e.g. Florida), look the agent
+        up on the state site, copy their exact licensee URL, and paste it here.</p>
+      <div id="licensing"></div>
+      <button id="save-licensing" class="primary">Save licensing</button>
+
+      <h2>Images</h2>
+      <div id="images"></div>
+
+      <div class="publish-bar">
+        <button id="publish-btn" class="primary publish">Publish to live site</button>
+        <span id="publish-status"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>

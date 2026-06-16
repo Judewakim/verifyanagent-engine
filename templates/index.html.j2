@@ -20,6 +20,20 @@
        VERIFY PAGE — Page-specific styles
        ============================================= */
 
+    /* Brand color override. Unlike style.css (served verbatim), this template
+       IS rendered through Jinja, so the agent's primary_color is substituted
+       here. When set, accents use it and buttons fill with it on hover. When
+       unset, the block is omitted and everything falls back to the static
+       defaults in style.css (navy --blue, monochrome black/white button hover). */
+{% if primary_color %}
+    :root {
+      --blue: {{ primary_color }};
+      --btn-hover-bg: {{ primary_color }};
+      --btn-hover-text: {{ brand_text_color }};
+      --btn-hover-border: {{ primary_color }};
+    }
+{% endif %}
+
     /* HERO */
     .verify-hero {
       padding: 10rem 0 5rem;
@@ -85,9 +99,12 @@
       transition: background 0.2s var(--ease), color 0.2s var(--ease);
     }
 
+    /* Hover fills with the agent's brand color (white text) when set;
+       falls back to the monochrome black-outline-on-white treatment when not. */
     .calendly-btn:hover {
-      background: var(--blue);
-      color: var(--white);
+      background: var(--btn-hover-bg, var(--white));
+      color: var(--btn-hover-text, var(--ink));
+      border-color: var(--btn-hover-border, var(--ink));
     }
 
     .agent-contact {
@@ -241,6 +258,18 @@
       text-align: center;
       padding: 0.9rem 1.5rem;
       font-size: 0.78rem;
+      /* Border matches the dark fill at rest (invisible); becomes the black
+         outline on hover with no layout shift. */
+      border: 1px solid var(--ink);
+    }
+
+    /* Hover fills with the agent's brand color (white text) when set;
+       falls back to the monochrome black-outline-on-white treatment when not. */
+    .verify-btn:hover {
+      background: var(--btn-hover-bg, var(--white));
+      color: var(--btn-hover-text, var(--ink));
+      border-color: var(--btn-hover-border, var(--ink));
+      transform: none;
     }
 
     /* CARRIERS IMAGE */
@@ -293,9 +322,12 @@
       transition: background 0.2s var(--ease), color 0.2s var(--ease);
     }
 
+    /* Hover fills with the agent's brand color (white text) when set;
+       falls back to the monochrome black fill when not. */
     .btn-outline:hover {
-      background: var(--ink);
-      color: var(--white);
+      background: var(--btn-hover-bg, var(--ink));
+      color: var(--btn-hover-text, var(--white));
+      border-color: var(--btn-hover-border, var(--ink));
     }
 
     /* LIGHTBOX */

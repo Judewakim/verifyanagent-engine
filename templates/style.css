@@ -12,7 +12,10 @@
   --ink-mid: #444444;
   --ink-muted: #888888;
   --accent: #1a1a1a;
-  --blue: {{ primary_color }};
+  /* Static default. style.css is served verbatim (not rendered through Jinja),
+     so brand-color overrides live in the inline <style> of index.html.j2,
+     which IS rendered and loads after this file. */
+  --blue: #1a3a5c;
   --font-serif: 'DM Serif Display', Georgia, serif;
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);

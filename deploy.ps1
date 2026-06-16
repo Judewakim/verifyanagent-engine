@@ -1,17 +1,35 @@
 # deploy.ps1 — Rebuild the Lambda package from source and deploy to AWS.
 #
-# Usage:  .\deploy.ps1
-# Run from anywhere — the script self-locates to the repo it lives in.
+# Usage:
+#   .\deploy.ps1                  # deploy the Stripe webhook function (default)
+#   .\deploy.ps1 -Function admin  # deploy the admin-editor API function
+#   .\deploy.ps1 -SyncAdmin       # also sync the admin/ static site to S3
+#
+# Both Lambdas share ONE zip (same source modules); only the configured Lambda
+# handler differs (handler.handler vs admin_api.handler) — set that per-function
+# in the AWS console, not here. Run from anywhere — the script self-locates.
+
+param(
+    [ValidateSet('function', 'admin')]
+    [string]$Function = 'function',
+    [switch]$SyncAdmin
+)
 
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
-$FunctionName = 'verifyanagent-function'   # hardcoded so we can NEVER push to verifyanagent-edge-router
+# Map the friendly arg to the real Lambda name. The hard guard below guarantees we
+# can NEVER push application code to verifyanagent-edge-router.
+$FunctionName = if ($Function -eq 'admin') { 'verifyanagent-admin' } else { 'verifyanagent-function' }
+if ($FunctionName -eq 'verifyanagent-edge-router') { throw "Refusing to deploy to the edge router." }
+
 $ZipPath      = 'lambda_fixed.zip'
 $BuildDir     = 'package'
 
 $Sources = @(
     'handler.py',
+    'admin_api.py',
+    'builder.py',
     'stripe_verifier.py',
     'airtable_client.py',
     's3_manager.py',
@@ -19,6 +37,16 @@ $Sources = @(
     'state_data.py',
     'cert_ocr.py'
 )
+
+# Load deploy config (bucket / distribution ids) for the optional admin-site sync.
+$envFile = '.env.deploy'
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)\s*$') {
+            Set-Item "env:$($matches[1])" $matches[2]
+        }
+    }
+}
 
 # ── Pre-flight ────────────────────────────────────────────────────────────────
 foreach ($tool in 'aws','python','pip') {
@@ -90,5 +118,23 @@ Write-Host "    CodeSha256   : $($result.CodeSha256)"
 Write-Host "    CodeSize     : $([math]::Round($result.CodeSize / 1MB, 2)) MB"
 Write-Host "    Runtime      : $($result.Runtime)"
 Write-Host ""
-Write-Host "Next: resend a checkout.session.completed event in Stripe Dashboard,"
-Write-Host "      or run .\trigger.ps1 -Email <agent-email>"
+if ($Function -eq 'admin') {
+    Write-Host "Deployed the admin API. Ensure the Lambda handler is set to 'admin_api.handler'"
+    Write-Host "and these env vars exist: ADMIN_PASSWORD, ADMIN_SESSION_SECRET, ADMIN_CORS_ORIGIN,"
+    Write-Host "plus the shared AIRTABLE_TOKEN/AIRTABLE_BASE_ID/S3_BUCKET/ANTHROPIC_API_KEY."
+} else {
+    Write-Host "Next: resend a checkout.session.completed event in Stripe Dashboard,"
+    Write-Host "      or run .\trigger.ps1 -Email <agent-email>"
+}
+
+# ── Optional: publish the admin static site ───────────────────────────────────
+if ($SyncAdmin) {
+    if (-not $env:ADMIN_SITE_BUCKET) {
+        throw "ADMIN_SITE_BUCKET not set. Add it to .env.deploy (the S3 bucket hosting admin.verifyanagent.com)."
+    }
+    Write-Host ""
+    Write-Host "==> Syncing admin/ to s3://$($env:ADMIN_SITE_BUCKET)/ ..."
+    aws s3 sync admin "s3://$($env:ADMIN_SITE_BUCKET)" --delete | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "aws s3 sync failed" }
+    Write-Host "==> Admin site published."
+}
