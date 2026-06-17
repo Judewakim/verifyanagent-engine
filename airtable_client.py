@@ -41,6 +41,53 @@ def find_by_email(email):
         return None
     return records[0]  # return the first match
 
+def list_all(fields=None):
+    """
+    Return every record in the Agents table (following Airtable's pagination).
+
+    fields: optional list of field names to fetch (lightens the payload for the
+            admin list view, e.g. ['name', 'email', 'site_status']). None = all fields.
+
+    Returns a list of record dicts, each with 'id' and 'fields'.
+    """
+    url = f"{BASE_URL}/{_get_base_id()}/{TABLE_NAME}"
+    records = []
+    offset = None
+    while True:
+        params = {'pageSize': 100}
+        if fields:
+            params['fields[]'] = fields
+        if offset:
+            params['offset'] = offset
+        response = requests.get(url, headers=_get_headers(), params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        records.extend(data.get('records', []))
+        offset = data.get('offset')
+        if not offset:
+            break
+    return records
+
+def get_by_id(record_id):
+    """
+    Fetch a single Agents record by its Airtable record id (recXXXX).
+    Returns the full record dict (with 'id' and 'fields').
+    """
+    url = f"{BASE_URL}/{_get_base_id()}/{TABLE_NAME}/{record_id}"
+    response = requests.get(url, headers=_get_headers(), timeout=10)
+    response.raise_for_status()
+    return response.json()
+
+def set_attachment(record_id, field_name, url, filename):
+    """
+    Replace an attachment field with a single file at the given URL.
+
+    Airtable fetches and re-hosts the file from `url` (which must be reachable for
+    a short window — a presigned S3 GET URL works). Passing a one-element list
+    REPLACES the field's contents, so the build's attachments[0] reads the new file.
+    """
+    return update(record_id, {field_name: [{'url': url, 'filename': filename}]})
+
 def update(record_id, fields):
     """
     Update specific fields on an existing Airtable record.

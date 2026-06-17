@@ -23,6 +23,19 @@ def slugify(name):
     name = re.sub(r"-+", "-", name)              # collapse multiple hyphens into one
     return name.strip("-")                        # remove leading/trailing hyphens
 
+
+def resolve_slug(fields):
+    """
+    The slug for an agent — used as BOTH the S3 folder name and the subdomain.
+
+    Uses the optional 'subdomain' field when set (so the public URL can differ
+    from the displayed name), otherwise falls back to slugifying 'name'. The
+    chosen value is always run through slugify() so it's URL-safe regardless of
+    how it was typed in Airtable ('Andres A. Espinoza' -> 'andresaespinoza').
+    """
+    override = (fields.get('subdomain') or '').strip()
+    return slugify(override) if override else slugify(fields.get('name', ''))
+
 def _guess_content_type(filename):
     """
     Returns the correct MIME type for a file based on its extension.
@@ -87,13 +100,17 @@ def upload_assets(record, slug, errors):
     asset_map = {}
 
     # ── Helper: download one attachment and upload to S3 ─────────────────────
-    def process_attachment(attachments, field_label, s3_filename_base):
+    def process_attachment(attachments, field_label, s3_filename_base, warn_if_empty=True):
         """
         Downloads the first attachment in the list and uploads it to S3.
         Returns the filename used (e.g. 'profile.jpg') or None on failure.
+
+        warn_if_empty: when False, an empty field is silent (no build note). Used for
+                       logo fields that fall back to one another — only one is needed.
         """
         if not attachments:
-            errors.append(f"No {field_label} uploaded — field was empty.")
+            if warn_if_empty:
+                errors.append(f"No {field_label} uploaded — field was empty.")
             return None
         attachment = attachments[0]
         original_name = attachment.get('filename', 'file')
@@ -113,9 +130,9 @@ def upload_assets(record, slug, errors):
         fields.get('profile_pic', []), 'profile picture', 'profile'
     )
 
-    # ── Logo (full) ────────────────────────────────────────────────────────────
+    # ── Logo (full) — falls back to/from the icon, so don't warn when empty ─────
     asset_map['logo_full'] = process_attachment(
-        fields.get('logo_full', []), 'full logo', 'logo-full'
+        fields.get('logo_full', []), 'full logo', 'logo-full', warn_if_empty=False
     )
 
     # ── Logo (icon) — optional, falls back to full logo ───────────────────────

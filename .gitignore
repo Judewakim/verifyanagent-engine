@@ -224,3 +224,6 @@ package/
 
 # Local deploy config (API Gateway URL + Stripe webhook secret — never commit)
 .env.deploy
+
+# Admin Lambda env vars (contains secrets — never commit)
+env.json
