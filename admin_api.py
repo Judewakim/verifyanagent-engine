@@ -55,6 +55,7 @@ EDITABLE_FIELDS = {
     'states',
     'license_numbers_override',
     'verify_url_override',
+    'hide_certificates',
 }
 
 # Attachment (image) fields, each holding exactly one file.

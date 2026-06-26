@@ -306,6 +306,13 @@
       gap: 0.75rem;
     }
 
+    /* When certificates are hidden, only the Verify button remains — center it
+       at its natural width instead of stretching across a single grid column. */
+    .card-btn-row.verify-only {
+      display: flex;
+      justify-content: center;
+    }
+
     .btn-outline {
       display: inline-block;
       background: var(--white);
@@ -676,12 +683,14 @@
           </div>
         </div>
 
-        <div class="card-btn-row">
+        <div class="card-btn-row{% if hide_certificates %} verify-only{% endif %}">
+          {% if not hide_certificates %}
           {% if state.cert_url %}
           <a href="{{ state.cert_url }}" target="_blank" rel="noopener noreferrer"
             class="btn-outline">View Certificate</a>
           {% else %}
           <span class="btn-outline" style="opacity:0.45;cursor:default;">Certificate Pending</span>
+          {% endif %}
           {% endif %}
 
           {% if state.verify_url %}

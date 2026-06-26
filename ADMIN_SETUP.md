@@ -1,5 +1,10 @@
 # Admin Web Editor — step-by-step setup
 
+> ✅ **Already deployed and live** at **https://admin.verifyanagent.com** (admin Lambda
+> `verifyanagent-admin` behind API Gateway `https://4qinwlny78.execute-api.us-east-1.amazonaws.com`).
+> Keep this as the from-scratch rebuild reference; see [ADMIN_RUNBOOK.md](ADMIN_RUNBOOK.md)
+> for the detailed checklist and troubleshooting.
+
 One-time wiring to turn on the admin portal. The code is done; these steps just stand up
 the web page + endpoint + login that let a browser reach your **existing** build. Run from
 the repo root in PowerShell with the AWS CLI you already use. Region: `us-east-1`.
@@ -82,30 +87,41 @@ Apply it:
 aws lambda update-function-configuration --function-name verifyanagent-admin --environment file://env.json
 ```
 
-**IAM check:** the role must allow `s3:GetObject` and `s3:PutObject` on
-`verifyanagent-agent-sites` (it stores your password hash at `_admin/credentials.json` and
-stages image uploads under `agents/*/_uploads/`). If the role's S3 policy is the whole
-bucket, you're set; if it's scoped to `agents/*` only, add `_admin/*`.
+**IAM check:** the role must allow `s3:GetObject`/`s3:PutObject` on the objects **and
+`s3:ListBucket` on the bucket itself** (the ListBucket grant makes a missing
+`_admin/credentials.json` return `NoSuchKey` → first-run setup, instead of `AccessDenied` → a
+500). The ready-made [admin-s3-policy.json](admin-s3-policy.json) grants all three. It stores
+your password hash at `_admin/credentials.json` and stages image uploads under
+`agents/*/_uploads/`. If the role's S3 policy is scoped to `agents/*` only, add `_admin/*`.
 
 ---
 
-## Step 4 — Give the Lambda a public URL (replaces API Gateway)
-Two commands — no API Gateway, no account-id juggling:
+## Step 4 — Give the Lambda a public endpoint (API Gateway HTTP API)
+> ⚠️ **Lambda Function URLs are blocked in this account** — an anonymous (`AuthType=NONE`)
+> Function URL returns `403 AccessDenied` regardless of the resource policy. Use an **API
+> Gateway HTTP API** instead; it invokes the Lambda via a service principal, so it isn't
+> affected. The handler already speaks API Gateway v2 (`rawPath`), so no code change is needed.
 
+One command creates the API + `$default` route + auto-deploy stage + Lambda proxy
+integration + invoke permission:
 ```powershell
-aws lambda create-function-url-config --function-name verifyanagent-admin --auth-type NONE
-
-aws lambda add-permission `
-  --function-name verifyanagent-admin `
-  --statement-id AdminUrlPublic `
-  --action lambda:InvokeFunctionUrl `
-  --principal "*" `
-  --function-url-auth-type NONE
+aws apigatewayv2 create-api `
+  --name verifyanagent-admin-api `
+  --protocol-type HTTP `
+  --target arn:aws:lambda:us-east-1:123456789012:function:verifyanagent-admin
 ```
-The first command prints a **`FunctionUrl`** like
-`https://abc123xyz.lambda-url.us-east-1.on.aws/` — **save it for Step 6** (drop the
-trailing slash). "Public" only means reachable; the portal's own email+password still
-guards every action, and CORS is enforced by the Lambda to your admin origin.
+It prints an **`ApiEndpoint`** like `https://abc123.execute-api.us-east-1.amazonaws.com` —
+**save it for Step 6** (no trailing slash; the `$default` stage puts paths at the root, e.g.
+`…/admin/status`). The portal's own email+password still guards every action, and CORS is
+enforced by the Lambda to your admin origin.
+
+If the `--target` shortcut doesn't add the invoke permission (symptom: generic `500` and the
+Lambda has **no** CloudWatch log group), add it manually with the printed ApiId as `<API_ID>`:
+```powershell
+aws lambda add-permission --function-name verifyanagent-admin --statement-id ApiGwInvoke `
+  --action lambda:InvokeFunction --principal apigateway.amazonaws.com `
+  --source-arn "arn:aws:execute-api:us-east-1:123456789012:<API_ID>/*/*"
+```
 
 ---
 
@@ -129,8 +145,9 @@ aws s3api put-bucket-cors --bucket verifyanagent-agent-sites --cors-configuratio
 ---
 
 ## Step 6 — Publish the admin page
-1. In [admin/admin.js](admin/admin.js), set `API_BASE` to the **FunctionUrl** from Step 4
-   (no trailing slash).
+1. In [admin/admin.js](admin/admin.js), set `API_BASE` to the **ApiEndpoint** from Step 4
+   (no trailing slash). For the live deployment it is already set to
+   `https://4qinwlny78.execute-api.us-east-1.amazonaws.com`.
 2. Sync the page to the `agents/admin/` prefix (served automatically at
    `admin.verifyanagent.com`):
    ```powershell
