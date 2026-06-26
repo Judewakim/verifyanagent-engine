@@ -220,3 +220,21 @@ aws s3 sync admin "s3://verifyanagent-agent-sites/agents/admin"
 | POST | `/admin/agents/{id}/image-url` | presigned S3 PUT |
 | POST | `/admin/agents/{id}/image` | attach uploaded image |
 | POST | `/admin/agents/{id}/publish` | rebuild + go live |
+
+### Public signup routes (no auth — used by `verifyanagent.com/signup`)
+These let the brand-styled signup form create records without a login. They're guarded by a
+honeypot + Cloudflare Turnstile (create) and a `site_status='submitted'` check (image routes).
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/signup` | create a new Agents record from the public form → returns `{recordId}` |
+| GET | `/signup/check-subdomain` | is a desired page address free? (`?value=&name=`) |
+| POST | `/signup/{id}/image-url` | presigned S3 PUT for an image (pending signups only) |
+| POST | `/signup/{id}/image` | attach uploaded image (pending signups only) |
+| POST | `/signup/{id}/cert-url` | presigned S3 PUT for one state's cert PDF (pending signups only) |
+| POST | `/signup/{id}/certs` | attach all uploaded cert PDFs to `cert_uploads` (pending signups only) |
+
+After `/signup`, the form redirects to the Stripe Payment Link with
+`?prefilled_email=…&client_reference_id=<recordId>`. The webhook ([handler.py](handler.py))
+reads `client_reference_id` to join the payment to the record **by id**, so the email the
+customer types at Stripe no longer has to match the form.

@@ -86,7 +86,18 @@ def set_attachment(record_id, field_name, url, filename):
     a short window — a presigned S3 GET URL works). Passing a one-element list
     REPLACES the field's contents, so the build's attachments[0] reads the new file.
     """
-    return update(record_id, {field_name: [{'url': url, 'filename': filename}]})
+    return set_attachments(record_id, field_name, [{'url': url, 'filename': filename}])
+
+def set_attachments(record_id, field_name, items):
+    """
+    Replace an attachment field with MULTIPLE files (e.g. cert_uploads, which holds
+    one PDF per licensed state).
+
+    items: a list of {'url': ..., 'filename': ...} dicts. Airtable fetches and
+    re-hosts each file from its url (a presigned S3 GET URL works). This REPLACES
+    the field's contents with exactly this list.
+    """
+    return update(record_id, {field_name: list(items)})
 
 def update(record_id, fields):
     """
@@ -101,21 +112,33 @@ def update(record_id, fields):
     response.raise_for_status()
     return response.json()
 
+def create(fields):
+    """
+    Create a new record in the Agents table.
+
+    fields: a dict of {field_name: value} to set on the new record.
+    Returns the full created record dict (including its 'id', e.g. 'recXXXX').
+
+    Example: create({'name': 'Jane Doe', 'email': 'jane@example.com'})
+    """
+    url = f"{BASE_URL}/{_get_base_id()}/{TABLE_NAME}"
+    payload = {"fields": fields}
+    response = requests.post(url, headers=_get_headers(), json=payload, timeout=10)
+    if not response.ok:
+        # Surface Airtable's detailed error body (e.g. which field/option was
+        # rejected) instead of the generic '422 Unprocessable Entity'.
+        raise RuntimeError(f"Airtable create failed ({response.status_code}): {response.text}")
+    return response.json()
+
 def create_error_record(email, error_message):
     """
     When a Stripe payment comes in but we can't find a matching form submission,
     create a new Airtable record to flag this for manual investigation.
     This will trigger Airtable Automation 2 (site_status = 'error'  email Jude).
     """
-    url = f"{BASE_URL}/{_get_base_id()}/{TABLE_NAME}"
-    payload = {
-        "fields": {
-            "email": email,
-            "payment_status": "paid",
-            "site_status": "error",
-            "build_notes": error_message
-        }
-    }
-    response = requests.post(url, headers=_get_headers(), json=payload, timeout=10)
-    response.raise_for_status()
-    return response.json()
+    return create({
+        "email": email,
+        "payment_status": "paid",
+        "site_status": "error",
+        "build_notes": error_message,
+    })

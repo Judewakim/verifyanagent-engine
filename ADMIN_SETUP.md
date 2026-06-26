@@ -79,9 +79,23 @@ Create **`env.json`** (don't commit it) with those shared values plus the two ad
   "S3_BUCKET": "verifyanagent-agent-sites",
   "ANTHROPIC_API_KEY": "...",
   "ADMIN_SESSION_SECRET": "<paste-a-long-random-string>",
-  "ADMIN_CORS_ORIGIN": "https://admin.verifyanagent.com"
+  "ADMIN_CORS_ORIGIN": "https://admin.verifyanagent.com",
+  "TURNSTILE_SECRET": "<cloudflare-turnstile-secret-key>"
 } }
 ```
+
+**`TURNSTILE_SECRET`** is new — it's the Cloudflare Turnstile **secret** key that the public
+`/signup` route uses to verify the captcha on the brand-styled signup form
+(`apex_site/signup.html`; the matching **site** key is pasted into that page's `data-sitekey`).
+If `TURNSTILE_SECRET` is unset, captcha verification is **skipped** (fine for local dev, not
+for production).
+
+**CORS for the signup form:** this Lambda now serves the public signup routes too, so it must
+accept requests from the apex origin. The code allows `admin.verifyanagent.com`,
+`verifyanagent.com`, and `www.verifyanagent.com` **by default** (and still merges in
+`ADMIN_CORS_ORIGIN` if set). To override the whole list, set `ALLOWED_ORIGINS` to a
+comma-separated list of origins.
+
 Apply it:
 ```powershell
 aws lambda update-function-configuration --function-name verifyanagent-admin --environment file://env.json
