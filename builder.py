@@ -186,6 +186,7 @@ def build_site(record, *, update_status=True):
     states_for_template = state_data.build_states_for_agent(
         agent_states, agent_npn, agent_name, cert_map, license_numbers, errors,
         verify_url_override=verify_url_overrides,
+        hide_certificates=bool(fields.get('hide_certificates', False)),
     )
     print(f"Built data for {len(states_for_template)} states.")
 

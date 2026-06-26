@@ -20,6 +20,8 @@ import base64
 import hashlib
 from pathlib import Path
 
+import requests
+
 import airtable_client
 import s3_manager
 import builder
@@ -55,10 +57,27 @@ EDITABLE_FIELDS = {
     'states',
     'license_numbers_override',
     'verify_url_override',
+    'hide_certificates',
 }
 
 # Attachment (image) fields, each holding exactly one file.
 IMAGE_FIELDS = {'profile_pic', 'logo_full', 'logo_icon', 'carriers_img'}
+
+# Fields the PUBLIC signup form may set when creating a brand-new record. Same as
+# the editor's whitelist, plus 'email' (which the editor treats as read-only but a
+# new signup must provide). Status fields are set by the server, never the client.
+SIGNUP_FIELDS = EDITABLE_FIELDS | {'email'}
+
+# Certificate PDFs live in a separate MULTIPLE-attachment field. The build matches
+# each file to a state by its filename, so we name staged certs '{ABBREV}.pdf'.
+CERT_FIELD = 'cert_uploads'
+_ALLOWED_CERT_EXTS = {'.pdf'}
+
+# Slugs that may never be claimed as a subdomain (they collide with infra/pages).
+RESERVED_SLUGS = {
+    'admin', 'www', 'api', 'app', 'mail', 'ftp', 'assets', 'static',
+    'test', 'staging', 'get-started', 'getstarted', 'signup', 'index',
+}
 
 # Fields surfaced (read-only) alongside the editable ones in the detail view.
 _READ_FIELDS = ('name', 'email', 'npn', 'site_status', 'site_url', 'build_notes')
@@ -67,9 +86,43 @@ _ALLOWED_IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'}
 
 
 # ── HTTP helpers ──────────────────────────────────────────────────────────────
+# The admin portal (admin.verifyanagent.com) AND the public signup form on the
+# apex site both call this API from the browser, so CORS must allow both origins.
+# We reflect the request's Origin only if it's on the allowlist (env override:
+# ALLOWED_ORIGINS, comma-separated). _resolved_origin is set per-invocation at the
+# top of handler() — Lambda runs one invocation start-to-finish, so a module global
+# is safe here and saves threading the event through every _respond() call.
+_DEFAULT_ALLOWED_ORIGINS = (
+    'https://admin.verifyanagent.com',
+    'https://verifyanagent.com',
+    'https://www.verifyanagent.com',
+)
+_resolved_origin = '*'
+
+
+def _allowed_origins():
+    env = os.environ.get('ALLOWED_ORIGINS')
+    if env:
+        return tuple(o.strip() for o in env.split(',') if o.strip())
+    origins = set(_DEFAULT_ALLOWED_ORIGINS)
+    legacy = os.environ.get('ADMIN_CORS_ORIGIN')
+    if legacy and legacy != '*':
+        origins.add(legacy)
+    return tuple(sorted(origins))
+
+
+def _resolve_origin(event):
+    """Echo the request Origin only when it's allowed; else fall back to the first."""
+    origin = _header(event, 'origin') or ''
+    allowed = _allowed_origins()
+    if origin in allowed:
+        return origin
+    return allowed[0] if allowed else '*'
+
+
 def _cors_headers():
     return {
-        'Access-Control-Allow-Origin':  os.environ.get('ADMIN_CORS_ORIGIN', '*'),
+        'Access-Control-Allow-Origin':  _resolved_origin,
         'Access-Control-Allow-Headers': 'Authorization, Content-Type',
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
         'Access-Control-Max-Age':       '3600',
@@ -289,22 +342,23 @@ def _get_agent(event, record_id):
     })
 
 
+def _coerce_npn(fields):
+    """NPN is a TEXT field in this Airtable base — send it as a trimmed string (or
+    None to clear it). It previously coerced to int, but a text column rejects an
+    integer with a 422 INVALID_VALUE_FOR_COLUMN."""
+    if 'npn' in fields:
+        npn = str(fields['npn'] if fields['npn'] is not None else '').strip()
+        fields['npn'] = npn or None
+    return fields
+
+
 def _patch_agent(event, record_id):
     body = _parse_body(event)
     updates = {k: v for k, v in body.items() if k in EDITABLE_FIELDS}
     if not updates:
         return _respond(400, {'error': 'no editable fields supplied'})
 
-    # NPN is a Number field in Airtable — coerce a numeric string to an int, or
-    # clear it if blank. Anything else is left as-is (Airtable will reject bad input).
-    if 'npn' in updates:
-        npn = updates['npn']
-        if isinstance(npn, str):
-            npn = npn.strip()
-            if npn == '':
-                updates['npn'] = None
-            elif npn.isdigit():
-                updates['npn'] = int(npn)
+    _coerce_npn(updates)
 
     airtable_client.update(record_id, updates)
     return _respond(200, {'ok': True, 'updated': sorted(updates.keys())})
@@ -368,8 +422,173 @@ def _publish(event, record_id):
     })
 
 
+# ── Public signup (the brand-styled creation form on the apex site) ────────────
+# These routes are UNAUTHENTICATED — anyone on verifyanagent.com/signup can hit
+# them. Real harm is bounded (a site only builds after Stripe payment), but to
+# keep junk out we use a honeypot field + Cloudflare Turnstile, and the image
+# routes only accept records still in the 'submitted' state.
+def _source_ip(event):
+    return event.get('requestContext', {}).get('http', {}).get('sourceIp')
+
+
+def _verify_turnstile(event, token):
+    """Verify a Cloudflare Turnstile token. If no secret is configured (e.g. local
+    dev), verification is skipped — set TURNSTILE_SECRET in production."""
+    secret = os.environ.get('TURNSTILE_SECRET')
+    if not secret:
+        print('WARNING: TURNSTILE_SECRET not set — skipping captcha verification')
+        return True
+    if not token:
+        return False
+    try:
+        resp = requests.post(
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            data={'secret': secret, 'response': token, 'remoteip': _source_ip(event)},
+            timeout=10,
+        )
+        return bool(resp.json().get('success'))
+    except Exception as e:
+        print(f'Turnstile verification error: {e}')
+        return False
+
+
+def _signup(event):
+    """Create a new Agents record from the public form. Returns the new record id
+    so the browser can upload images and then redirect to Stripe with it."""
+    body = _parse_body(event)
+
+    # Honeypot: a field hidden from humans via CSS. If it's filled, it's a bot.
+    if (body.get('company') or '').strip():
+        print('Signup rejected: honeypot filled')
+        return _respond(400, {'error': 'rejected'})
+
+    if not _verify_turnstile(event, body.get('turnstileToken', '')):
+        return _respond(400, {'error': 'captcha verification failed — please try again'})
+
+    fields = {k: v for k, v in body.items() if k in SIGNUP_FIELDS}
+
+    email = (fields.get('email') or '').strip()
+    if not email or '@' not in email:
+        return _respond(400, {'error': 'a valid email is required'})
+    fields['email'] = email
+
+    if not (fields.get('name') or '').strip():
+        return _respond(400, {'error': 'name is required'})
+
+    if not str(fields.get('npn') or '').strip():
+        return _respond(400, {'error': 'NPN is required'})
+
+    _coerce_npn(fields)
+
+    # Initial status for a fresh, unpaid signup. These MUST match the predefined
+    # Airtable single-select options exactly. The Stripe webhook later sets
+    # payment_status='paid', and the build advances site_status from here.
+    fields['payment_status'] = 'pending'
+    fields['site_status'] = 'not started'
+
+    record = airtable_client.create(fields)
+    return _respond(200, {'recordId': record['id']})
+
+
+def _signup_editable(record_id):
+    """Public upload routes may only touch a record that hasn't been paid for yet,
+    so they can't be aimed at a live, paid agent's record. A fresh signup has no
+    payment_status until the Stripe webhook sets it to 'paid'."""
+    record = airtable_client.get_by_id(record_id)
+    return record.get('fields', {}).get('payment_status') != 'paid'
+
+
+def _signup_image_url(event, record_id):
+    if not _signup_editable(record_id):
+        return _respond(403, {'error': 'not a pending signup'})
+    return _image_upload_url(event, record_id)
+
+
+def _signup_image(event, record_id):
+    if not _signup_editable(record_id):
+        return _respond(403, {'error': 'not a pending signup'})
+    return _image_attach(event, record_id)
+
+
+def _check_subdomain(event):
+    """Tell the signup form whether a desired page address is free. Resolves the
+    slug the same way the build does (subdomain if given, else slugified name), then
+    checks it against reserved words and every existing agent's resolved slug."""
+    qs = event.get('queryStringParameters') or {}
+    value = (qs.get('value') or '').strip()
+    name = (qs.get('name') or '').strip()
+    slug = s3_manager.resolve_slug({'subdomain': value, 'name': name})
+
+    if not slug:
+        return _respond(200, {'slug': '', 'available': False, 'reason': 'empty'})
+    if slug in RESERVED_SLUGS:
+        return _respond(200, {'slug': slug, 'available': False, 'reason': 'reserved'})
+    for r in airtable_client.list_all(fields=['subdomain', 'name']):
+        if s3_manager.resolve_slug(r.get('fields', {})) == slug:
+            return _respond(200, {'slug': slug, 'available': False, 'reason': 'taken'})
+    return _respond(200, {'slug': slug, 'available': True})
+
+
+def _signup_cert_url(event, record_id):
+    """Step 1 of a cert upload: presign a PUT for one state's certificate PDF."""
+    if not _signup_editable(record_id):
+        return _respond(403, {'error': 'not a pending signup'})
+    body = _parse_body(event)
+    abbrev = (body.get('abbrev') or '').strip().upper()
+    filename = body.get('filename', '')
+    content_type = body.get('contentType') or 'application/pdf'
+
+    if abbrev not in state_data.STATES:
+        return _respond(400, {'error': f'unknown state: {abbrev}'})
+    ext = Path(filename).suffix.lower()
+    if ext not in _ALLOWED_CERT_EXTS:
+        return _respond(400, {'error': 'certificates must be PDF files'})
+
+    record = airtable_client.get_by_id(record_id)
+    slug = s3_manager.resolve_slug(record['fields'])
+    key = f"agents/{slug}/_uploads/certs/{abbrev}.pdf"
+
+    upload_url = s3_manager.s3.generate_presigned_url(
+        'put_object',
+        Params={'Bucket': os.environ['S3_BUCKET'], 'Key': key, 'ContentType': content_type},
+        ExpiresIn=900,
+    )
+    return _respond(200, {'uploadUrl': upload_url, 'key': key, 'abbrev': abbrev, 'contentType': content_type})
+
+
+def _signup_certs(event, record_id):
+    """Step 2: after the browser PUT each cert to S3, point the multi-attachment
+    cert_uploads field at all of them in one shot. Filenames are '{ABBREV}.pdf' so
+    the build matches each cert to its state."""
+    if not _signup_editable(record_id):
+        return _respond(403, {'error': 'not a pending signup'})
+    body = _parse_body(event)
+    certs = body.get('certs') or []
+
+    items = []
+    for c in certs:
+        key = c.get('key')
+        abbrev = (c.get('abbrev') or '').strip().upper()
+        if not key or abbrev not in state_data.STATES:
+            continue
+        get_url = s3_manager.s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': os.environ['S3_BUCKET'], 'Key': key},
+            ExpiresIn=3600,
+        )
+        items.append({'url': get_url, 'filename': f'{abbrev}.pdf'})
+
+    if not items:
+        return _respond(400, {'error': 'no valid certificates supplied'})
+    airtable_client.set_attachments(record_id, CERT_FIELD, items)
+    return _respond(200, {'ok': True, 'count': len(items)})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 def handler(event, context):
+    global _resolved_origin
+    _resolved_origin = _resolve_origin(event)
+
     method = _request_method(event)
     path = _request_path(event).rstrip('/') or '/'
 
@@ -384,6 +603,27 @@ def handler(event, context):
         return _route(_login, event)
     if method == 'POST' and path == '/admin/set-initial-password':
         return _route(_set_initial_password, event)
+
+    # Public signup routes (the brand-styled creation form on the apex site).
+    # No auth — guarded by honeypot + Turnstile (create) and a 'submitted'-state
+    # check (image routes). Registered above the _require_auth wall below.
+    if method == 'POST' and path == '/signup':
+        return _route(_signup, event)
+    if method == 'GET' and path == '/signup/check-subdomain':
+        return _route(_check_subdomain, event)
+    if path.startswith('/signup/'):
+        parts = path[len('/signup/'):].split('/')
+        record_id = parts[0]
+        action = parts[1] if len(parts) > 1 else None
+        if record_id and method == 'POST':
+            if action == 'image-url':
+                return _route(_signup_image_url, event, record_id)
+            if action == 'image':
+                return _route(_signup_image, event, record_id)
+            if action == 'cert-url':
+                return _route(_signup_cert_url, event, record_id)
+            if action == 'certs':
+                return _route(_signup_certs, event, record_id)
 
     # Everything below requires a valid token
     unauthorized = _require_auth(event)

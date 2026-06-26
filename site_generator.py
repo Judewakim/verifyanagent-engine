@@ -87,6 +87,10 @@ def render(record, slug, asset_map, states):
         # License cards (list of state dicts)
         'states': states,
 
+        # When True, suppress every "View Certificate" button (per-client opt-in).
+        # Airtable omits unchecked checkboxes, so absent == not hidden == show certs.
+        'hide_certificates': bool(fields.get('hide_certificates', False)),
+
         # Footer
         'year': '2026',
         'site_url': f'https://{slug}.verifyanagent.com',

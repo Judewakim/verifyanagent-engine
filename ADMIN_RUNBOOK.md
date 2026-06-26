@@ -1,5 +1,12 @@
 # Admin Portal — Deployment Runbook
 
+> ✅ **Status: LIVE.** The admin portal is already deployed and in use at
+> **https://admin.verifyanagent.com**. This runbook is kept as the from-scratch
+> rebuild/reference. Live resources: admin Lambda `verifyanagent-admin`, fronted by an
+> **API Gateway HTTP API** at `https://4qinwlny78.execute-api.us-east-1.amazonaws.com`
+> (Function URLs are blocked in this account — see Phase 3). Day-to-day updates are at the
+> bottom under *Updating things later*.
+
 The detailed, do-this-now checklist to turn on the admin editor. All code is already
 written and in this repo — **every step below is a command you run; nothing is blocked on
 anyone else.** Run everything from the repo root in PowerShell, using the same AWS CLI you
@@ -14,6 +21,7 @@ already use for `deploy.ps1`.
 | IAM role ARN | `arn:aws:iam::123456789012:role/service-role/verifyanagent-function-role-tl3ru80t` |
 | IAM role name | `verifyanagent-function-role-tl3ru80t` |
 | Admin login email | `you@example.com` (hardcoded; password set at first login) |
+| Admin API endpoint | `https://4qinwlny78.execute-api.us-east-1.amazonaws.com` (API Gateway HTTP API) |
 
 ### Prerequisites (one-time)
 - AWS CLI installed and authenticated to account `123456789012`.
@@ -80,7 +88,10 @@ aws lambda update-function-configuration --function-name verifyanagent-admin --e
 ### 2c. Ensure the role can read/write S3
 The admin Lambda stores your password hash at `_admin/credentials.json` and stages image
 uploads under `agents/*/_uploads/`. Attach the ready-made policy (**`admin-s3-policy.json`**,
-already in the repo) — it's harmless if the role already has this access:
+already in the repo) — it's harmless if the role already has this access. It grants
+`GetObject`/`PutObject` on the bucket **and `s3:ListBucket` on the bucket itself** — the latter
+is required so that reading a *not-yet-created* `_admin/credentials.json` returns `NoSuchKey`
+(handled → first-run setup) instead of `AccessDenied` (a 500):
 ```powershell
 aws iam put-role-policy --role-name verifyanagent-function-role-tl3ru80t --policy-name admin-s3-access --policy-document file://admin-s3-policy.json
 ```
@@ -88,27 +99,38 @@ aws iam put-role-policy --role-name verifyanagent-function-role-tl3ru80t --polic
 
 ---
 
-## Phase 3 — Give the Lambda a public URL
+## Phase 3 — Give the Lambda a public endpoint (API Gateway HTTP API)
 
-Two commands (this replaces API Gateway — simpler, no extra resources):
+> ⚠️ **Why not a Lambda Function URL?** This account **blocks anonymous (`AuthType=NONE`)
+> Function URLs** — a public Function URL returns `403 AccessDenied` no matter how the resource
+> policy is set (verified: correct policy, no SCP/RCP, management account). We use an **API
+> Gateway HTTP API** instead. API Gateway invokes the Lambda via a service principal (not
+> anonymous public invoke), so it isn't affected. The handler already speaks API Gateway v2
+> (it reads `rawPath`), so no code change is needed.
+
+One command creates the HTTP API, a `$default` route, a `$default` auto-deploy stage, the
+Lambda proxy integration, **and** the invoke permission:
 ```powershell
-aws lambda create-function-url-config --function-name verifyanagent-admin --auth-type NONE
+aws apigatewayv2 create-api `
+  --name verifyanagent-admin-api `
+  --protocol-type HTTP `
+  --target arn:aws:lambda:us-east-1:123456789012:function:verifyanagent-admin
 ```
-✅ **Checkpoint & ACTION:** the output includes a **`"FunctionUrl": "https://XXXX.lambda-url.us-east-1.on.aws/"`**.
-**Copy that URL** — you need it in Phase 5. (Remove the trailing slash when you use it.)
+✅ **Checkpoint & ACTION:** the output includes an **`"ApiEndpoint": "https://XXXX.execute-api.us-east-1.amazonaws.com"`**.
+**Copy that endpoint** — you need it in Phase 5. (No trailing slash; the `$default` stage means
+paths are at the root, e.g. `…/admin/status`.)
 
-```powershell
-aws lambda add-permission `
-  --function-name verifyanagent-admin `
-  --statement-id AdminUrlPublic `
-  --action lambda:InvokeFunctionUrl `
-  --principal "*" `
-  --function-url-auth-type NONE
-```
-✅ **Checkpoint:** returns a JSON `"Statement"` string. (Without this, the URL returns 403.)
+> If the `--target` shortcut ever fails to add the invoke permission (symptom: every call
+> returns a generic `500` and the Lambda has **no** CloudWatch log group, i.e. it never ran),
+> add it manually — replace `<API_ID>` with the ApiId from the output above:
+> ```powershell
+> aws lambda add-permission --function-name verifyanagent-admin --statement-id ApiGwInvoke `
+>   --action lambda:InvokeFunction --principal apigateway.amazonaws.com `
+>   --source-arn "arn:aws:execute-api:us-east-1:123456789012:<API_ID>/*/*"
+> ```
 
-> "Public" only means *reachable*. Every action still requires your email+password, and the
-> Lambda enforces CORS so only `admin.verifyanagent.com` can call it from a browser.
+> Every action still requires your email+password, and the Lambda enforces CORS so only
+> `admin.verifyanagent.com` can call it from a browser.
 
 ---
 
@@ -129,12 +151,11 @@ aws s3api get-bucket-cors --bucket verifyanagent-agent-sites
 
 ## Phase 5 — Publish the admin page
 
-### 5a. Point the page at your Lambda URL
-Edit [admin/admin.js](admin/admin.js), line with `API_BASE`, and replace
-`REPLACE_WITH_ADMIN_API_BASE_URL` with the **FunctionUrl** from Phase 3 (no trailing slash),
-e.g.:
+### 5a. Point the page at your API endpoint
+Edit [admin/admin.js](admin/admin.js), the line with `API_BASE`, and set it to the **ApiEndpoint**
+from Phase 3 (no trailing slash). It is already baked into the repo for the live deployment:
 ```js
-const API_BASE = localStorage.getItem('apiBase') || 'https://XXXX.lambda-url.us-east-1.on.aws';
+const API_BASE = localStorage.getItem('apiBase') || 'https://4qinwlny78.execute-api.us-east-1.amazonaws.com';
 ```
 
 ### 5b. Upload the page
@@ -178,8 +199,9 @@ aws s3 sync admin "s3://verifyanagent-agent-sites/agents/admin"
 | Symptom | Likely cause / fix |
 |---|---|
 | Login page never loads at `admin.verifyanagent.com` | Page not synced (Phase 5b), or the slug collides with a real "Admin" agent. Confirm `agents/admin/index.html` exists in the bucket. |
-| Browser console shows **CORS** error calling the Lambda | `ADMIN_CORS_ORIGIN` in `env.json` must be exactly `https://admin.verifyanagent.com`. Re-apply Phase 2b. |
-| Every API call returns **403 Forbidden** | You skipped the `add-permission` command (Phase 3, 2nd command). |
+| Browser console shows **CORS** error calling the API | `ADMIN_CORS_ORIGIN` in `env.json` must be exactly `https://admin.verifyanagent.com`. Re-apply Phase 2b. |
+| Every API call returns a generic **500** and the Lambda has **no** CloudWatch log group | API Gateway can't invoke the Lambda — add the `apigateway.amazonaws.com` invoke permission (see the note in Phase 3). |
+| `/admin/status` returns **500** with `AccessDenied` on `s3:ListBucket` | The S3 policy is missing `s3:ListBucket` on the bucket (needed so a *missing* `_admin/credentials.json` returns `NoSuchKey`, not `AccessDenied`). [admin-s3-policy.json](admin-s3-policy.json) already includes it — re-run Phase 2c. |
 | Login / Publish returns **500** with `AccessDenied` (S3) | Role lacks S3 rights — run the Phase 2c policy command. |
 | Image upload fails at the "Uploading…" step | Bucket CORS missing — run Phase 4. |
 | "Set password" never appears, goes straight to login | A password is already set. Use the login form, or to reset, delete `_admin/credentials.json` from the bucket and reload. |
@@ -198,3 +220,21 @@ aws s3 sync admin "s3://verifyanagent-agent-sites/agents/admin"
 | POST | `/admin/agents/{id}/image-url` | presigned S3 PUT |
 | POST | `/admin/agents/{id}/image` | attach uploaded image |
 | POST | `/admin/agents/{id}/publish` | rebuild + go live |
+
+### Public signup routes (no auth — used by `verifyanagent.com/signup`)
+These let the brand-styled signup form create records without a login. They're guarded by a
+honeypot + Cloudflare Turnstile (create) and a `site_status='submitted'` check (image routes).
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/signup` | create a new Agents record from the public form → returns `{recordId}` |
+| GET | `/signup/check-subdomain` | is a desired page address free? (`?value=&name=`) |
+| POST | `/signup/{id}/image-url` | presigned S3 PUT for an image (pending signups only) |
+| POST | `/signup/{id}/image` | attach uploaded image (pending signups only) |
+| POST | `/signup/{id}/cert-url` | presigned S3 PUT for one state's cert PDF (pending signups only) |
+| POST | `/signup/{id}/certs` | attach all uploaded cert PDFs to `cert_uploads` (pending signups only) |
+
+After `/signup`, the form redirects to the Stripe Payment Link with
+`?prefilled_email=…&client_reference_id=<recordId>`. The webhook ([handler.py](handler.py))
+reads `client_reference_id` to join the payment to the record **by id**, so the email the
+customer types at Stripe no longer has to match the form.

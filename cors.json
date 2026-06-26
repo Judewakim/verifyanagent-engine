@@ -1,7 +1,11 @@
 {
   "CORSRules": [
     {
-      "AllowedOrigins": ["https://admin.verifyanagent.com"],
+      "AllowedOrigins": [
+        "https://admin.verifyanagent.com",
+        "https://verifyanagent.com",
+        "https://www.verifyanagent.com"
+      ],
       "AllowedMethods": ["PUT"],
       "AllowedHeaders": ["*"],
       "MaxAgeSeconds": 3000

@@ -182,7 +182,7 @@ _MISSING_REASON = {
 
 
 def build_states_for_agent(selected_states, npn, agent_name, cert_map, license_numbers, errors,
-                           verify_url_override=None):
+                           verify_url_override=None, hide_certificates=False):
     """
     Takes the list of states the agent is licensed in (from Airtable)
     and builds the data each state card in the HTML template needs.
@@ -200,6 +200,9 @@ def build_states_for_agent(selected_states, npn, agent_name, cert_map, license_n
                       randomized and can't be built from a template. An override wins
                       over the STATES template and renders a button even when the
                       state's template url is None.
+    hide_certificates: when True the site won't render any "View Certificate" button,
+                      so a missing cert PDF is expected, not a problem — suppress the
+                      "no certificate found" warning to keep build_notes clean.
 
     Returns a list of dicts, one per state, ready to be passed to the Jinja2 template.
     """
@@ -228,9 +231,11 @@ def build_states_for_agent(selected_states, npn, agent_name, cert_map, license_n
                 abbrev, state_info, npn, first_name, last_name, license_numbers, errors
             )
 
-        # Check whether a certificate was uploaded for this state
+        # Check whether a certificate was uploaded for this state. When the agent
+        # has opted to hide certificates entirely, a missing PDF is expected — don't
+        # warn about it.
         cert_url = cert_map.get(abbrev)
-        if not cert_url:
+        if not cert_url and not hide_certificates:
             errors.append(
                 f"{state_info['name']} ({abbrev}): No certificate PDF found "
                 f"(expected a file named '{abbrev}.pdf'). "

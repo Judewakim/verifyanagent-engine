@@ -6,7 +6,7 @@
  * You can also override it at runtime in the browser console with:
  *   localStorage.setItem('apiBase', 'https://...')
  */
-const API_BASE = localStorage.getItem('apiBase') || 'REPLACE_WITH_ADMIN_API_BASE_URL';
+const API_BASE = localStorage.getItem('apiBase') || 'https://4qinwlny78.execute-api.us-east-1.amazonaws.com';
 
 const SIMPLE_FIELDS = [
   { key: 'name', label: 'Name', type: 'text',
@@ -274,6 +274,15 @@ function renderLicensing() {
   const licenseNums = parseKV(current.editable.license_numbers_override);
   const verifyUrls = parseKV(current.editable.verify_url_override);
 
+  // Per-client display option: hide every "View Certificate" button on the site.
+  const hideLbl = document.createElement('label');
+  hideLbl.style.cssText = 'flex-direction:row;align-items:center;gap:8px;color:#1d2939;margin-bottom:12px;';
+  hideLbl.innerHTML = '<input type="checkbox" id="hide-certs" style="width:auto"' +
+    (current.editable.hide_certificates ? ' checked' : '') +
+    '> Hide the “View Certificate” buttons on all cards';
+  hideLbl.querySelector('input').addEventListener('change', captureLicensing);
+  wrap.appendChild(hideLbl);
+
   // State membership checkboxes
   const picker = document.createElement('details');
   picker.innerHTML = '<summary>Licensed states (' + selected.size + ' selected)</summary>';
@@ -310,13 +319,16 @@ function renderLicensing() {
 
 // Pull current licensing inputs back into `current.editable` (so a re-render keeps them)
 function captureLicensing() {
-  const checked = Array.from(document.querySelectorAll('#licensing input[type=checkbox]:checked')).map((c) => c.value);
+  // Exclude the hide-certificates toggle — it's not a state membership checkbox.
+  const checked = Array.from(document.querySelectorAll('#licensing input[type=checkbox]:checked:not(#hide-certs)')).map((c) => c.value);
   const nums = {}, urls = {};
   document.querySelectorAll('#licensing input[data-lic]').forEach((i) => { if (i.value.trim()) nums[i.dataset.lic] = i.value.trim(); });
   document.querySelectorAll('#licensing input[data-url]').forEach((i) => { if (i.value.trim()) urls[i.dataset.url] = i.value.trim(); });
+  const hideEl = document.getElementById('hide-certs');
   current.editable.states = checked;
   current.editable.license_numbers_override = serializeKV(nums);
   current.editable.verify_url_override = serializeKV(urls);
+  current.editable.hide_certificates = hideEl ? hideEl.checked : false;
 }
 
 document.getElementById('save-licensing').addEventListener('click', async () => {
@@ -326,6 +338,7 @@ document.getElementById('save-licensing').addEventListener('click', async () => 
       states: current.editable.states,
       license_numbers_override: current.editable.license_numbers_override,
       verify_url_override: current.editable.verify_url_override,
+      hide_certificates: current.editable.hide_certificates,
     });
     markDirty();
     flash('save-licensing', 'Saved');
