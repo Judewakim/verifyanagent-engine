@@ -113,7 +113,7 @@
       margin-left: 0.5rem;
       vertical-align: middle;
       font-size: 0.55rem;
-      font-weight: 600;
+      font-weight: 400;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--ink);
@@ -423,48 +423,27 @@
        scrolls out of view as the page moves. */
     .nav { position: sticky; }
 
-    /* VERIFICATION TRUST STRIP — a single-line notice that slowly loops like a
-       ticker. Set in Times New Roman to read like an official record. The track
-       holds two identical copies and translates -50% for a seamless loop. */
+    /* VERIFICATION TRUST STRIP — a static, single-line notice in Times New Roman
+       so it reads like an official record. Small enough to fit on one line. */
     .trust-strip {
       background: var(--off);
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
       font-family: 'Times New Roman', Times, serif;
-      overflow: hidden;
-      padding: 0.5rem 0;
     }
 
-    .trust-track {
-      display: inline-flex;
-      align-items: center;
-      white-space: nowrap;
-      will-change: transform;
-      animation: trust-scroll 48s linear infinite;
+    .trust-strip-inner {
+      padding-top: 0.45rem;
+      padding-bottom: 0.45rem;
+      text-align: center;
     }
 
-    .trust-strip:hover .trust-track { animation-play-state: paused; }
-
-    .trust-group {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      padding-right: 3rem;            /* gap between the looping repeats */
-      font-size: 0.95rem;
+    .trust-statement {
+      margin: 0;
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 0.8rem;
+      line-height: 1.4;
       color: var(--ink-mid);
-    }
-
-    .trust-ico { width: 16px; height: 16px; flex-shrink: 0; }
-
-    @keyframes trust-scroll {
-      from { transform: translateX(0); }
-      to   { transform: translateX(-50%); }
-    }
-
-    /* Visually hidden, but readable by screen readers (the ticker is aria-hidden). */
-    .sr-only {
-      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
     }
 
     /* "Verified by VerifyAnAgent" seal — pinned to the right end of the nav bar,
@@ -493,7 +472,7 @@
 
     @media (max-width: 720px) {
       .nav-seal { font-size: 0.6rem; letter-spacing: 0.05em; gap: 0.35rem; }
-      .trust-group { font-size: 0.85rem; }
+      .trust-statement { font-size: 0.7rem; }
     }
 
     @media (max-width: 480px) {
@@ -768,29 +747,12 @@
 </head>
 <body>
 
-  <!-- VERIFICATION TRUST STRIP — a single-line ticker that slowly loops. In
-       normal flow above the nav, so it scrolls out of view as the page moves.
-       The track holds two identical groups for a seamless loop; each group opens
-       with a warning icon and closes with an information icon. -->
+  <!-- VERIFICATION TRUST STRIP — static, single-line notice. In normal flow
+       above the nav, so it scrolls out of view as the page moves. -->
   <div class="trust-strip">
-    <div class="trust-track" aria-hidden="true">
-      {% for _ in range(2) %}
-      <span class="trust-group">
-        <svg class="trust-ico" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 3 L22 20 H2 Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-          <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <circle cx="12" cy="17" r="0.9" fill="currentColor"/>
-        </svg>
-        <span>This person has completed a federal background check and FBI fingerprint screening before licensing and receiving a National Producer Number. This person is licensed by each of the states listed below. Use the links provided to verify an active record with each state. Verify the agent's records below before revealing sensitive information.</span>
-        <svg class="trust-ico" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
-          <line x1="12" y1="11" x2="12" y2="16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <circle cx="12" cy="8" r="0.9" fill="currentColor"/>
-        </svg>
-      </span>
-      {% endfor %}
+    <div class="container trust-strip-inner">
+      <p class="trust-statement">This person completed a federal background check and FBI fingerprint screening before state licensing. Verify records using links below before providing sensitive information.</p>
     </div>
-    <p class="sr-only">This person has completed a federal background check and FBI fingerprint screening before licensing and receiving a National Producer Number. This person is licensed by each of the states listed below. Use the links provided to verify an active record with each state. Verify the agent's records below before revealing sensitive information.</p>
   </div>
 
   <!-- NAV — sticky; stays pinned to the top as the page scrolls. -->
