@@ -423,27 +423,48 @@
        scrolls out of view as the page moves. */
     .nav { position: sticky; }
 
-    /* VERIFICATION TRUST STRIP — a formal, plain-text government-style notice.
-       Set in Times New Roman to read like an official record, not marketing. */
+    /* VERIFICATION TRUST STRIP — a single-line notice that slowly loops like a
+       ticker. Set in Times New Roman to read like an official record. The track
+       holds two identical copies and translates -50% for a seamless loop. */
     .trust-strip {
       background: var(--off);
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
       font-family: 'Times New Roman', Times, serif;
+      overflow: hidden;
+      padding: 0.5rem 0;
     }
 
-    .trust-strip-inner {
-      padding-top: 0.55rem;
-      padding-bottom: 0.55rem;
-      text-align: center;
+    .trust-track {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      will-change: transform;
+      animation: trust-scroll 48s linear infinite;
     }
 
-    .trust-statement {
-      margin: 0;
-      font-family: 'Times New Roman', Times, serif;
+    .trust-strip:hover .trust-track { animation-play-state: paused; }
+
+    .trust-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding-right: 3rem;            /* gap between the looping repeats */
       font-size: 0.95rem;
-      line-height: 1.5;
       color: var(--ink-mid);
+    }
+
+    .trust-ico { width: 16px; height: 16px; flex-shrink: 0; }
+
+    @keyframes trust-scroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* Visually hidden, but readable by screen readers (the ticker is aria-hidden). */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
     }
 
     /* "Verified by VerifyAnAgent" seal — pinned to the right end of the nav bar,
@@ -472,7 +493,7 @@
 
     @media (max-width: 720px) {
       .nav-seal { font-size: 0.6rem; letter-spacing: 0.05em; gap: 0.35rem; }
-      .trust-statement { font-size: 0.85rem; }
+      .trust-group { font-size: 0.85rem; }
     }
 
     @media (max-width: 480px) {
@@ -509,6 +530,9 @@
       box-shadow: 0 24px 60px rgba(0,0,0,0.25);
       font-family: 'Times New Roman', Times, serif;
     }
+
+    /* VerifyAnAgent seal, top-left of the modal. */
+    .info-logo { width: 44px; height: 44px; display: block; margin-bottom: 1.2rem; }
 
     .info-modal p {
       font-family: 'Times New Roman', Times, serif;
@@ -744,12 +768,29 @@
 </head>
 <body>
 
-  <!-- VERIFICATION TRUST STRIP — formal, plain-text notice (no symbols).
-       In normal flow above the nav, so it scrolls out of view as the page moves. -->
+  <!-- VERIFICATION TRUST STRIP — a single-line ticker that slowly loops. In
+       normal flow above the nav, so it scrolls out of view as the page moves.
+       The track holds two identical groups for a seamless loop; each group opens
+       with a warning icon and closes with an information icon. -->
   <div class="trust-strip">
-    <div class="container trust-strip-inner">
-      <p class="trust-statement">This person has completed a federal background check and FBI fingerprint screening. This person is licensed with each of the states listed below. Use the links provided to verify an active record with each state. Verify the agent's records below before revealing sensitive information.</p>
+    <div class="trust-track" aria-hidden="true">
+      {% for _ in range(2) %}
+      <span class="trust-group">
+        <svg class="trust-ico" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3 L22 20 H2 Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="12" cy="17" r="0.9" fill="currentColor"/>
+        </svg>
+        <span>This person has completed a federal background check and FBI fingerprint screening before licensing and receiving a National Producer Number. This person is licensed by each of the states listed below. Use the links provided to verify an active record with each state. Verify the agent's records below before revealing sensitive information.</span>
+        <svg class="trust-ico" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
+          <line x1="12" y1="11" x2="12" y2="16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="12" cy="8" r="0.9" fill="currentColor"/>
+        </svg>
+      </span>
+      {% endfor %}
     </div>
+    <p class="sr-only">This person has completed a federal background check and FBI fingerprint screening before licensing and receiving a National Producer Number. This person is licensed by each of the states listed below. Use the links provided to verify an active record with each state. Verify the agent's records below before revealing sensitive information.</p>
   </div>
 
   <!-- NAV — sticky; stays pinned to the top as the page scrolls. -->
@@ -909,6 +950,13 @@
   <div class="info-overlay" id="verifyInfo" role="dialog" aria-modal="true" aria-label="Verification information">
     <div class="info-modal">
       <button class="info-close" id="verifyInfoClose" aria-label="Close">&times;</button>
+      <svg class="info-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="50" cy="50" r="48" fill="#0c2240" stroke="#fdb81e" stroke-width="2.5"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
+        <path d="M50 24 L70 33 V52 C70 66 61 74 50 78 C39 74 30 66 30 52 V33 Z" fill="#205493" stroke="#fdb81e" stroke-width="1.6"/>
+        <path d="M41 51 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <g fill="#fdb81e"><circle cx="50" cy="16" r="1.6"/><circle cx="84" cy="50" r="1.6"/><circle cx="50" cy="84" r="1.6"/><circle cx="16" cy="50" r="1.6"/></g>
+      </svg>
       <p>VerifyAnAgent independently confirms the identity and active licensing of every agent it publishes. The information on this page is not self-reported.</p>
       <p>Before receiving licensing and a National Producer Number, every agent clears a federal criminal background check and an FBI fingerprint-based screening.</p>
       <p>Licenses are re-verified on a recurring schedule against each state's insurance regulator, so that a lapse is reflected on this page.</p>
