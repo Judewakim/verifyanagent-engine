@@ -36,7 +36,7 @@
 
     /* HERO */
     .verify-hero {
-      padding: 12rem 0 5rem;
+      padding: 3.5rem 0 5rem;
       background: var(--white);
       border-bottom: 1px solid var(--border);
       text-align: center;
@@ -99,11 +99,11 @@
       transition: background 0.2s var(--ease), color 0.2s var(--ease);
     }
 
-    /* Hover fills with the agent's brand color (white text) when set;
-       falls back to the monochrome black-outline-on-white treatment when not. */
+    /* Hover fills with the agent's brand color (contrasting text) when set;
+       falls back to a true monochrome invert (black fill, white text) when not. */
     .calendly-btn:hover {
-      background: var(--btn-hover-bg, var(--white));
-      color: var(--btn-hover-text, var(--ink));
+      background: var(--btn-hover-bg, var(--ink));
+      color: var(--btn-hover-text, var(--white));
       border-color: var(--btn-hover-border, var(--ink));
     }
 
@@ -126,10 +126,11 @@
       transition: background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease);
     }
 
-    /* Same brand-color hover behavior as the Schedule-a-Call button. */
+    /* Same hover behavior as the Schedule-a-Call button: brand fill when set,
+       monochrome invert (black fill, white text) when not. */
     .nipr-btn:hover {
-      background: var(--btn-hover-bg, var(--white));
-      color: var(--btn-hover-text, var(--ink));
+      background: var(--btn-hover-bg, var(--ink));
+      color: var(--btn-hover-text, var(--white));
       border-color: var(--btn-hover-border, var(--ink));
     }
 
@@ -417,16 +418,10 @@
 
     .lightbox-close:hover { color: #fff; }
 
-    /* SITE HEADER — nav + trust strip pinned together.
-       .nav is position:fixed in style.css; inside this combined fixed header
-       it flows normally so the trust strip always sits flush beneath it, with
-       no gap when the nav shrinks (.scrolled) on scroll. */
-    .site-header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-    }
-    .site-header .nav { position: static; }
+    /* The nav sticks to the top of the viewport (overriding the position:fixed
+       in style.css), while the trust strip above it stays in normal flow so it
+       scrolls out of view as the page moves. */
+    .nav { position: sticky; }
 
     /* VERIFICATION TRUST STRIP — a formal, plain-text government-style notice.
        Set in Times New Roman to read like an official record, not marketing. */
@@ -473,12 +468,10 @@
 
     .nav-seal:hover { opacity: 0.6; }
     .nav-seal .seal-text { white-space: nowrap; }
-    .nav-seal .seal-cta { color: var(--ink-muted); white-space: nowrap; }
     .nav-seal .seal-logo { width: 26px; height: 26px; flex-shrink: 0; display: block; }
 
     @media (max-width: 720px) {
       .nav-seal { font-size: 0.6rem; letter-spacing: 0.05em; gap: 0.35rem; }
-      .nav-seal .seal-cta { display: none; }
       .trust-statement { font-size: 0.85rem; }
     }
 
@@ -515,15 +508,6 @@
       position: relative;
       box-shadow: 0 24px 60px rgba(0,0,0,0.25);
       font-family: 'Times New Roman', Times, serif;
-    }
-
-    .info-modal h2 {
-      font-family: 'Times New Roman', Times, serif;
-      font-weight: 700;
-      font-size: 1.5rem;
-      color: var(--ink);
-      margin-bottom: 1.2rem;
-      padding-right: 1.5rem;
     }
 
     .info-modal p {
@@ -760,9 +744,15 @@
 </head>
 <body>
 
-  <!-- HEADER — nav + verification trust strip pinned together -->
-  <header class="site-header">
-  <!-- NAV -->
+  <!-- VERIFICATION TRUST STRIP — formal, plain-text notice (no symbols).
+       In normal flow above the nav, so it scrolls out of view as the page moves. -->
+  <div class="trust-strip">
+    <div class="container trust-strip-inner">
+      <p class="trust-statement">This person has completed a federal background check and FBI fingerprint screening. This person is licensed with each of the states listed below. Use the links provided to verify an active record with each state. Verify the agent's records below before revealing sensitive information.</p>
+    </div>
+  </div>
+
+  <!-- NAV — sticky; stays pinned to the top as the page scrolls. -->
   <nav class="nav" id="nav">
     <div class="nav-inner">
       <a href="#" class="logo">
@@ -774,7 +764,6 @@
       <button type="button" class="nav-seal" id="verifyInfoTrigger"
         aria-haspopup="dialog" aria-expanded="false" aria-controls="verifyInfo">
         <span class="seal-text">Verified by VerifyAnAgent</span>
-        <span class="seal-cta">&middot; How this works &#9656;</span>
         <svg class="seal-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <circle cx="50" cy="50" r="48" fill="#0c2240" stroke="#fdb81e" stroke-width="2.5"/>
           <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
@@ -785,14 +774,6 @@
       </button>
     </div>
   </nav>
-
-  <!-- VERIFICATION TRUST STRIP — formal, plain-text notice (no symbols). -->
-  <div class="trust-strip">
-    <div class="container trust-strip-inner">
-      <p class="trust-statement">This agent has completed a federal background check and FBI fingerprint screening, is a licensed life insurance broker, and is licensed in every state listed below.</p>
-    </div>
-  </div>
-  </header>
 
   <!-- MOBILE MENU -->
   <!-- <div class="mobile-menu" id="mobileMenu">
@@ -925,16 +906,15 @@
   </footer>
 
   <!-- VERIFICATION INFO MODAL -->
-  <div class="info-overlay" id="verifyInfo" role="dialog" aria-modal="true" aria-labelledby="verifyInfoTitle">
+  <div class="info-overlay" id="verifyInfo" role="dialog" aria-modal="true" aria-label="Verification information">
     <div class="info-modal">
       <button class="info-close" id="verifyInfoClose" aria-label="Close">&times;</button>
-      <h2 id="verifyInfoTitle">How this verification works</h2>
-      <p><strong>Independent verification.</strong> VerifyAnAgent independently confirms the identity and active licensing of every agent it publishes. The information on this page is not self-reported.</p>
-      <p><strong>Identity vetting.</strong> Before publication, every agent clears a federal criminal background check and an FBI fingerprint-based screening.</p>
-      <p><strong>Active licensing.</strong> Licenses are re-verified on a recurring schedule against each state's insurance regulator, so that a lapse is reflected on this page.</p>
-      <p><strong>Independent confirmation.</strong> Every Verify License button below links to the state regulator's own public lookup, so that you may confirm each license yourself.</p>
-      <p><strong>Accountability.</strong> If an agent's license is suspended or revoked, or the agent is convicted of insurance-related misconduct, this verification page is removed.</p>
-      <p><strong>Misuse is a federal crime.</strong> Misuse of a client's personal or health information carries federal penalties of up to 250,000 dollars in fines and 10 years in prison under HIPAA, 42 U.S.C. 1320d-6. Insurance-business fraud carries penalties of up to 10 to 15 years under 18 U.S.C. 1033.</p>
+      <p>VerifyAnAgent independently confirms the identity and active licensing of every agent it publishes. The information on this page is not self-reported.</p>
+      <p>Before receiving licensing and a National Producer Number, every agent clears a federal criminal background check and an FBI fingerprint-based screening.</p>
+      <p>Licenses are re-verified on a recurring schedule against each state's insurance regulator, so that a lapse is reflected on this page.</p>
+      <p>Every Verify License button below links to the state regulator's own public lookup, so that you may confirm each license yourself.</p>
+      <p>If an agent's license is suspended or revoked, or the agent is convicted of insurance-related misconduct, this verification page is removed.</p>
+      <p>Misuse of a client's personal or health information carries federal penalties of up to 250,000 dollars in fines and 10 years in prison under HIPAA, 42 U.S.C. 1320d-6. Insurance-business fraud carries penalties of up to 10 to 15 years under 18 U.S.C. 1033.</p>
     </div>
   </div>
 
@@ -964,7 +944,7 @@
       }
     });
 
-    // Verification "How this works" modal
+    // Verification info modal (opened by the nav seal)
     const verifyInfo        = document.getElementById('verifyInfo');
     const verifyInfoTrigger = document.getElementById('verifyInfoTrigger');
     const verifyInfoClose   = document.getElementById('verifyInfoClose');
