@@ -36,7 +36,7 @@
 
     /* HERO */
     .verify-hero {
-      padding: 10rem 0 5rem;
+      padding: 3.5rem 0 5rem;
       background: var(--white);
       border-bottom: 1px solid var(--border);
       text-align: center;
@@ -82,7 +82,7 @@
       font-weight: 500;
       letter-spacing: 0.2em;
       text-transform: uppercase;
-      color: var(--blue);
+      color: var(--ink);
     }
 
     .calendly-btn {
@@ -91,19 +91,46 @@
       font-weight: 500;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: var(--blue);
-      border: 1px solid var(--blue);
+      color: var(--ink);
+      border: 1px solid var(--ink);
       padding: 0.22rem 0.75rem;
       text-decoration: none;
       cursor: pointer;
       transition: background 0.2s var(--ease), color 0.2s var(--ease);
     }
 
-    /* Hover fills with the agent's brand color (white text) when set;
-       falls back to the monochrome black-outline-on-white treatment when not. */
+    /* Hover fills with the agent's brand color (contrasting text) when set;
+       falls back to a true monochrome invert (black fill, white text) when not. */
     .calendly-btn:hover {
-      background: var(--btn-hover-bg, var(--white));
-      color: var(--btn-hover-text, var(--ink));
+      background: var(--btn-hover-bg, var(--ink));
+      color: var(--btn-hover-text, var(--white));
+      border-color: var(--btn-hover-border, var(--ink));
+    }
+
+    /* Tiny "Check on NIPR" pill sitting beside the NPN in the badge. */
+    .nipr-btn {
+      display: inline-block;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+      font-size: 0.55rem;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink);
+      border: 1px solid var(--ink);
+      border-radius: 2px;
+      padding: 0.1rem 0.4rem;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease);
+    }
+
+    /* Same hover behavior as the Schedule-a-Call button: brand fill when set,
+       monochrome invert (black fill, white text) when not. */
+    .nipr-btn:hover {
+      background: var(--btn-hover-bg, var(--ink));
+      color: var(--btn-hover-text, var(--white));
       border-color: var(--btn-hover-border, var(--ink));
     }
 
@@ -118,6 +145,20 @@
       color: var(--ink-muted);
       flex-wrap: wrap;
       justify-content: center;
+    }
+
+    /* Email link — black at rest, brand color on hover (accent as an
+       interaction cue, like the buttons). */
+    .agent-email {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px solid currentColor;
+      padding-bottom: 1px;
+      transition: color 0.2s var(--ease);
+    }
+
+    .agent-email:hover {
+      color: var(--blue);
     }
 
     .contact-sep {
@@ -377,6 +418,131 @@
 
     .lightbox-close:hover { color: #fff; }
 
+    /* The nav sticks to the top of the viewport (overriding the position:fixed
+       in style.css), while the trust strip above it stays in normal flow so it
+       scrolls out of view as the page moves. */
+    .nav { position: sticky; }
+
+    /* VERIFICATION TRUST STRIP — a static, single-line notice in Times New Roman
+       so it reads like an official record. Small enough to fit on one line. */
+    .trust-strip {
+      background: var(--off);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-family: 'Times New Roman', Times, serif;
+    }
+
+    .trust-strip-inner {
+      padding: 0.45rem 0.75rem;
+      text-align: center;
+    }
+
+    /* Sized in vw so the single line spans the screen width at any width. */
+    .trust-statement {
+      margin: 0;
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 1.2vw;
+      line-height: 1.4;
+      color: var(--ink-mid);
+      white-space: nowrap;
+    }
+
+    /* "Verified by VerifyAnAgent" seal — pinned to the right end of the nav bar,
+       on the same line as the agency logo, with the VerifyAnAgent seal as its
+       icon at the right. */
+    .nav-seal {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: opacity 0.2s var(--ease);
+    }
+
+    .nav-seal:hover { opacity: 0.6; }
+    .nav-seal .seal-text { white-space: nowrap; }
+    .nav-seal .seal-logo { width: 26px; height: 26px; flex-shrink: 0; display: block; }
+
+    @media (max-width: 720px) {
+      .nav-seal { font-size: 0.6rem; letter-spacing: 0.05em; gap: 0.35rem; }
+      /* Too narrow to fit on one line — drop to a readable size and allow wrap. */
+      .trust-statement { font-size: 0.72rem; white-space: normal; }
+    }
+
+    @media (max-width: 480px) {
+      .nav-seal .seal-text { display: none; }
+    }
+
+    /* VERIFICATION INFO MODAL — mirrors the lightbox overlay pattern */
+    .info-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(17,17,17,0.55);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      cursor: pointer;
+    }
+
+    .info-overlay.open { display: flex; }
+
+    /* Plain, official notice — Times New Roman, running paragraphs, no accent
+       labels or icons, so it reads like a government document. */
+    .info-modal {
+      background: var(--white);
+      cursor: default;
+      max-width: 560px;
+      width: 100%;
+      max-height: 86vh;
+      overflow-y: auto;
+      padding: 2.5rem 2.5rem 2rem;
+      border-top: 4px solid var(--blue);
+      position: relative;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+      font-family: 'Times New Roman', Times, serif;
+    }
+
+    /* VerifyAnAgent seal, top-left of the modal. */
+    .info-logo { width: 44px; height: 44px; display: block; margin-bottom: 1.2rem; }
+
+    .info-modal p {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--ink);
+      margin-bottom: 1rem;
+    }
+
+    .info-modal p:last-child { margin-bottom: 0; }
+    .info-modal p strong { font-weight: 700; }
+
+    .info-close {
+      position: absolute;
+      top: 0.8rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.8rem;
+      line-height: 1;
+      color: var(--ink-muted);
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-weight: 300;
+      transition: color 0.2s;
+    }
+
+    .info-close:hover { color: var(--ink); }
+
     /* TESTIMONIALS CAROUSEL */
     .testimonials {
       background: var(--white);
@@ -583,23 +749,34 @@
 </head>
 <body>
 
-  <!-- NAV -->
+  <!-- VERIFICATION TRUST STRIP — static, single-line notice. In normal flow
+       above the nav, so it scrolls out of view as the page moves. -->
+  <div class="trust-strip">
+    <div class="trust-strip-inner">
+      <p class="trust-statement">This person completed a federal background check and FBI fingerprint screening before state licensing. Verify records using links below before providing sensitive information.</p>
+    </div>
+  </div>
+
+  <!-- NAV — sticky; stays pinned to the top as the page scrolls. -->
   <nav class="nav" id="nav">
     <div class="nav-inner">
       <a href="#" class="logo">
         <img src="{{ logo_full }}" alt="{{ agency_name }} Logo" class="logo-img" />
       </a>
-      <!-- Nav links hidden: these anchors don't link to any section on this page. -->
-      <!-- <ul class="nav-links">
-        <li><a href="/#about">About</a></li>
-        <li><a href="/#services">Services</a></li>
-        <li><a href="/#why">Why Us</a></li>
-        <li><a href="/#contact" class="nav-cta">Get a Quote</a></li>
-      </ul> -->
-      <!-- Hamburger hidden: it only opened the mobile menu, which is disabled below. -->
-      <!-- <button class="hamburger" id="hamburger" aria-label="Menu">
-        <span></span><span></span>
-      </button> -->
+      <!-- "Verified by VerifyAnAgent" seal — opens the verification info modal.
+           Sits on the same line as the agency logo, pinned to the right, with
+           the VerifyAnAgent seal as its icon. -->
+      <button type="button" class="nav-seal" id="verifyInfoTrigger"
+        aria-haspopup="dialog" aria-expanded="false" aria-controls="verifyInfo">
+        <span class="seal-text">Verified by VerifyAnAgent</span>
+        <svg class="seal-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="50" cy="50" r="48" fill="#0c2240" stroke="#fdb81e" stroke-width="2.5"/>
+          <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
+          <path d="M50 24 L70 33 V52 C70 66 61 74 50 78 C39 74 30 66 30 52 V33 Z" fill="#205493" stroke="#fdb81e" stroke-width="1.6"/>
+          <path d="M41 51 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <g fill="#fdb81e"><circle cx="50" cy="16" r="1.6"/><circle cx="84" cy="50" r="1.6"/><circle cx="50" cy="84" r="1.6"/><circle cx="16" cy="50" r="1.6"/></g>
+        </svg>
+      </button>
     </div>
   </nav>
 
@@ -621,10 +798,9 @@
         <!-- Drop your photo file (jude-wakim.jpg) into the same folder as this file -->
         <img src="{{ profile_pic }}" alt="{{ agent_name }}" class="agent-photo lightbox-trigger" data-src="{{ profile_pic }}" style="cursor:zoom-in;" />
         <h1 class="verify-name">{{ agent_name }}</h1>
-        <span class="agent-badge">Licensed Life Insurance Broker<br>National Producer Number: {{ agent_npn }}</span>
+        <span class="agent-badge">Licensed Life Insurance Broker<br>National Producer Number: {{ agent_npn }}{% if agent_npn %}<a href="https://nipr.com/licensing-center/look-up-a-national-producer-number" target="_blank" rel="noopener noreferrer" class="nipr-btn">NIPR&#8202;&#8599;</a>{% endif %}</span>
         <div class="agent-contact">
-          <a href="mailto:{{ agent_email }}" style="color:inherit;text-decoration:none;
-            border-bottom:1px solid currentColor;padding-bottom:1px;">{{ agent_email }}</a>
+          <a href="mailto:{{ agent_email }}" class="agent-email">{{ agent_email }}</a>
           {% if calendly_url %}
           <span class="contact-sep">|</span>
           <a href="#"
@@ -734,6 +910,26 @@
     </div>
   </footer>
 
+  <!-- VERIFICATION INFO MODAL -->
+  <div class="info-overlay" id="verifyInfo" role="dialog" aria-modal="true" aria-label="Verification information">
+    <div class="info-modal">
+      <button class="info-close" id="verifyInfoClose" aria-label="Close">&times;</button>
+      <svg class="info-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="50" cy="50" r="48" fill="#0c2240" stroke="#fdb81e" stroke-width="2.5"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
+        <path d="M50 24 L70 33 V52 C70 66 61 74 50 78 C39 74 30 66 30 52 V33 Z" fill="#205493" stroke="#fdb81e" stroke-width="1.6"/>
+        <path d="M41 51 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <g fill="#fdb81e"><circle cx="50" cy="16" r="1.6"/><circle cx="84" cy="50" r="1.6"/><circle cx="50" cy="84" r="1.6"/><circle cx="16" cy="50" r="1.6"/></g>
+      </svg>
+      <p>VerifyAnAgent independently confirms the identity and active licensing of every agent it publishes. The information on this page is not self-reported.</p>
+      <p>Before receiving licensing and a National Producer Number, every agent clears a federal criminal background check and an FBI fingerprint-based screening.</p>
+      <p>Licenses are re-verified on a recurring schedule against each state's insurance regulator, so that a lapse is reflected on this page.</p>
+      <p>Every Verify License button below links to the state regulator's own public lookup, so that you may confirm each license yourself.</p>
+      <p>If an agent's license is suspended or revoked, or the agent is convicted of insurance-related misconduct, this verification page is removed.</p>
+      <p>Misuse of a client's personal or health information carries federal penalties of up to 250,000 dollars in fines and 10 years in prison under HIPAA, 42 U.S.C. 1320d-6. Insurance-business fraud carries penalties of up to 10 to 15 years under 18 U.S.C. 1033.</p>
+    </div>
+  </div>
+
   <!-- LIGHTBOX OVERLAY -->
   <div class="lightbox-overlay" id="lightbox">
     <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
@@ -760,9 +956,31 @@
       }
     });
 
-    // Close on Escape key
+    // Verification info modal (opened by the nav seal)
+    const verifyInfo        = document.getElementById('verifyInfo');
+    const verifyInfoTrigger = document.getElementById('verifyInfoTrigger');
+    const verifyInfoClose   = document.getElementById('verifyInfoClose');
+
+    verifyInfoTrigger.addEventListener('click', () => {
+      verifyInfo.classList.add('open');
+      verifyInfoTrigger.setAttribute('aria-expanded', 'true');
+    });
+
+    function closeVerifyInfo() {
+      verifyInfo.classList.remove('open');
+      verifyInfoTrigger.setAttribute('aria-expanded', 'false');
+    }
+
+    verifyInfo.addEventListener('click', e => {
+      if (e.target === verifyInfo || e.target === verifyInfoClose) closeVerifyInfo();
+    });
+
+    // Close on Escape key (shared by the lightbox and the verification modal)
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') lightbox.classList.remove('open');
+      if (e.key === 'Escape') {
+        lightbox.classList.remove('open');
+        closeVerifyInfo();
+      }
     });
   </script>
 

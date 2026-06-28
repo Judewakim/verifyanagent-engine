@@ -312,6 +312,42 @@ def _list_agents(event):
     return _respond(200, {'agents': agents})
 
 
+def _list_agents_public(event):
+    """Public, unauthenticated: published agents only, with the minimal fields the
+    homepage agent search needs. No email, no record id — just what already appears
+    on each agent's live public site."""
+    # This is public, non-credentialed, read-only data and it's fetched as a simple
+    # GET (no preflight), so allow any origin — unlike the admin routes, which keep
+    # the strict allowlist. Lets the search work from the apex site AND local dev.
+    global _resolved_origin
+    _resolved_origin = '*'
+    records = airtable_client.list_all(
+        fields=['name', 'subdomain', 'site_status', 'site_url', 'states', 'profile_pic']
+    )
+    agents = []
+    for r in records:
+        f = r['fields']
+        if f.get('site_status') != 'built':
+            continue
+        slug = s3_manager.resolve_slug(f)
+        # The profile photo is published to the agent's own site as profile.<ext>
+        # (see s3_manager.process_attachment). Point at that stable, non-expiring
+        # URL — Airtable attachment URLs expire and must not be handed to the browser.
+        atts = f.get('profile_pic') or []
+        ext = Path(atts[0].get('filename', '')).suffix.lower() if atts else ''
+        ext = ext or '.jpg'
+        site_url = f.get('site_url') or f"https://{slug}.verifyanagent.com"
+        agents.append({
+            'name':            f.get('name', ''),
+            'slug':            slug,
+            'states':          f.get('states', []) or [],
+            'site_url':        site_url,
+            'profile_pic_url': f"https://{slug}.verifyanagent.com/profile{ext}",
+        })
+    agents.sort(key=lambda a: a['name'].lower())
+    return _respond(200, {'agents': agents})
+
+
 def _first_attachment_url(attachments):
     if attachments and isinstance(attachments, list):
         return attachments[0].get('url')
@@ -603,6 +639,11 @@ def handler(event, context):
         return _route(_login, event)
     if method == 'POST' and path == '/admin/set-initial-password':
         return _route(_set_initial_password, event)
+
+    # Public agent directory — powers the homepage agent search. No auth: returns
+    # only published agents and only the fields already public on their live sites.
+    if method == 'GET' and path == '/public/agents':
+        return _route(_list_agents_public, event)
 
     # Public signup routes (the brand-styled creation form on the apex site).
     # No auth — guarded by honeypot + Turnstile (create) and a 'submitted'-state

@@ -253,6 +253,10 @@ def build_states_for_agent(selected_states, npn, agent_name, cert_map, license_n
             'cert_url':       cert_url,     # None if cert wasn't uploaded
         })
 
+    # Sort alphabetically by state name so the cards render A→Z and a visitor can
+    # quickly scan for a specific state, regardless of the order they came from Airtable.
+    result.sort(key=lambda s: s['name'])
+
     return result
 
 
