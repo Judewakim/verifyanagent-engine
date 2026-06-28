@@ -433,17 +433,18 @@
     }
 
     .trust-strip-inner {
-      padding-top: 0.45rem;
-      padding-bottom: 0.45rem;
+      padding: 0.45rem 0.75rem;
       text-align: center;
     }
 
+    /* Sized in vw so the single line spans the screen width at any width. */
     .trust-statement {
       margin: 0;
       font-family: 'Times New Roman', Times, serif;
-      font-size: 0.8rem;
+      font-size: 1.2vw;
       line-height: 1.4;
       color: var(--ink-mid);
+      white-space: nowrap;
     }
 
     /* "Verified by VerifyAnAgent" seal — pinned to the right end of the nav bar,
@@ -472,7 +473,8 @@
 
     @media (max-width: 720px) {
       .nav-seal { font-size: 0.6rem; letter-spacing: 0.05em; gap: 0.35rem; }
-      .trust-statement { font-size: 0.7rem; }
+      /* Too narrow to fit on one line — drop to a readable size and allow wrap. */
+      .trust-statement { font-size: 0.72rem; white-space: normal; }
     }
 
     @media (max-width: 480px) {
@@ -750,7 +752,7 @@
   <!-- VERIFICATION TRUST STRIP — static, single-line notice. In normal flow
        above the nav, so it scrolls out of view as the page moves. -->
   <div class="trust-strip">
-    <div class="container trust-strip-inner">
+    <div class="trust-strip-inner">
       <p class="trust-statement">This person completed a federal background check and FBI fingerprint screening before state licensing. Verify records using links below before providing sensitive information.</p>
     </div>
   </div>
