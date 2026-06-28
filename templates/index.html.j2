@@ -116,8 +116,8 @@
       font-weight: 600;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--blue);
-      border: 1px solid var(--blue);
+      color: var(--ink);
+      border: 1px solid var(--ink);
       border-radius: 2px;
       padding: 0.1rem 0.4rem;
       text-decoration: none;
@@ -428,88 +428,62 @@
     }
     .site-header .nav { position: static; }
 
-    /* VERIFICATION TRUST STRIP */
+    /* VERIFICATION TRUST STRIP — a formal, plain-text government-style notice.
+       Set in Times New Roman to read like an official record, not marketing. */
     .trust-strip {
-      --verify-green: #00824d;
       background: var(--off);
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
+      font-family: 'Times New Roman', Times, serif;
     }
 
     .trust-strip-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: nowrap;
-      gap: 0.4rem 1.5rem;
-      padding-top: 0.5rem;
-      padding-bottom: 0.5rem;
+      padding-top: 0.55rem;
+      padding-bottom: 0.55rem;
+      text-align: center;
     }
 
-    /* Items wrap to a second line within their own column while the seal
-       stays pinned to the right edge of the strip. */
-    .trust-items {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.4rem 1.4rem;
-      flex: 1 1 auto;
-    }
-
-    .trust-seal { flex: 0 0 auto; }
-
-    .trust-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.64rem;
-      font-weight: 500;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
+    .trust-statement {
+      margin: 0;
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 0.95rem;
+      line-height: 1.5;
       color: var(--ink-mid);
-      white-space: nowrap;
     }
 
-    .trust-item .check {
-      color: var(--verify-green);
-      font-weight: 700;
-      font-size: 0.8rem;
-      line-height: 1;
-    }
-
-    .trust-seal {
+    /* "Verified by VerifyAnAgent" seal — pinned to the right end of the nav bar,
+       on the same line as the agency logo, with the VerifyAnAgent seal as its
+       icon at the right. */
+    .nav-seal {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
       background: none;
       border: none;
-      padding: 0.2rem 0;
+      padding: 0;
       cursor: pointer;
-      color: var(--blue);
+      color: var(--ink);
       font-family: var(--font-sans);
-      font-size: 0.64rem;
+      font-size: 0.7rem;
       font-weight: 500;
-      letter-spacing: 0.13em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       transition: opacity 0.2s var(--ease);
     }
 
-    .trust-seal:hover { opacity: 0.6; }
-    .trust-seal .seal-icon { width: 22px; height: 22px; flex-shrink: 0; }
-    .trust-seal .seal-text { white-space: nowrap; }
-    .trust-seal .seal-cta { color: var(--ink-muted); white-space: nowrap; }
+    .nav-seal:hover { opacity: 0.6; }
+    .nav-seal .seal-text { white-space: nowrap; }
+    .nav-seal .seal-cta { color: var(--ink-muted); white-space: nowrap; }
+    .nav-seal .seal-logo { width: 26px; height: 26px; flex-shrink: 0; display: block; }
 
     @media (max-width: 720px) {
-      /* Stack to a single-column checklist with the seal beneath it. */
-      .trust-strip-inner { flex-wrap: wrap; }
-      .trust-items {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.32rem;
-        flex-basis: 100%;
-      }
-      .trust-item { font-size: 0.6rem; letter-spacing: 0.08em; }
-      .trust-seal { font-size: 0.6rem; letter-spacing: 0.08em; margin-top: 0.2rem; }
+      .nav-seal { font-size: 0.6rem; letter-spacing: 0.05em; gap: 0.35rem; }
+      .nav-seal .seal-cta { display: none; }
+      .trust-statement { font-size: 0.85rem; }
+    }
+
+    @media (max-width: 480px) {
+      .nav-seal .seal-text { display: none; }
     }
 
     /* VERIFICATION INFO MODAL — mirrors the lightbox overlay pattern */
@@ -527,6 +501,8 @@
 
     .info-overlay.open { display: flex; }
 
+    /* Plain, official notice — Times New Roman, running paragraphs, no accent
+       labels or icons, so it reads like a government document. */
     .info-modal {
       background: var(--white);
       cursor: default;
@@ -538,36 +514,28 @@
       border-top: 4px solid var(--blue);
       position: relative;
       box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+      font-family: 'Times New Roman', Times, serif;
     }
 
     .info-modal h2 {
-      font-family: var(--font-serif);
-      font-weight: 400;
-      font-size: 1.6rem;
+      font-family: 'Times New Roman', Times, serif;
+      font-weight: 700;
+      font-size: 1.5rem;
       color: var(--ink);
-      margin-bottom: 1.4rem;
+      margin-bottom: 1.2rem;
       padding-right: 1.5rem;
     }
 
-    .info-block { margin-bottom: 1.1rem; }
-    .info-block:last-child { margin-bottom: 0; }
-
-    .info-block strong {
-      display: block;
-      font-size: 0.66rem;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--blue);
-      margin-bottom: 0.3rem;
-    }
-
-    .info-block p {
-      font-size: 0.92rem;
-      font-weight: 300;
+    .info-modal p {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 1rem;
       line-height: 1.6;
-      color: var(--ink-mid);
+      color: var(--ink);
+      margin-bottom: 1rem;
     }
+
+    .info-modal p:last-child { margin-bottom: 0; }
+    .info-modal p strong { font-weight: 700; }
 
     .info-close {
       position: absolute;
@@ -800,40 +768,28 @@
       <a href="#" class="logo">
         <img src="{{ logo_full }}" alt="{{ agency_name }} Logo" class="logo-img" />
       </a>
-      <!-- Nav links hidden: these anchors don't link to any section on this page. -->
-      <!-- <ul class="nav-links">
-        <li><a href="/#about">About</a></li>
-        <li><a href="/#services">Services</a></li>
-        <li><a href="/#why">Why Us</a></li>
-        <li><a href="/#contact" class="nav-cta">Get a Quote</a></li>
-      </ul> -->
-      <!-- Hamburger hidden: it only opened the mobile menu, which is disabled below. -->
-      <!-- <button class="hamburger" id="hamburger" aria-label="Menu">
-        <span></span><span></span>
-      </button> -->
+      <!-- "Verified by VerifyAnAgent" seal — opens the verification info modal.
+           Sits on the same line as the agency logo, pinned to the right, with
+           the VerifyAnAgent seal as its icon. -->
+      <button type="button" class="nav-seal" id="verifyInfoTrigger"
+        aria-haspopup="dialog" aria-expanded="false" aria-controls="verifyInfo">
+        <span class="seal-text">Verified by VerifyAnAgent</span>
+        <span class="seal-cta">&middot; How this works &#9656;</span>
+        <svg class="seal-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="50" cy="50" r="48" fill="#0c2240" stroke="#fdb81e" stroke-width="2.5"/>
+          <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
+          <path d="M50 24 L70 33 V52 C70 66 61 74 50 78 C39 74 30 66 30 52 V33 Z" fill="#205493" stroke="#fdb81e" stroke-width="1.6"/>
+          <path d="M41 51 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <g fill="#fdb81e"><circle cx="50" cy="16" r="1.6"/><circle cx="84" cy="50" r="1.6"/><circle cx="50" cy="84" r="1.6"/><circle cx="16" cy="50" r="1.6"/></g>
+        </svg>
+      </button>
     </div>
   </nav>
 
-  <!-- VERIFICATION TRUST STRIP -->
+  <!-- VERIFICATION TRUST STRIP — formal, plain-text notice (no symbols). -->
   <div class="trust-strip">
     <div class="container trust-strip-inner">
-      <div class="trust-items">
-        <span class="trust-item"><span class="check" aria-hidden="true">&#10003;</span>Federal background check</span>
-        <span class="trust-item"><span class="check" aria-hidden="true">&#10003;</span>FBI fingerprint screening</span>
-        <span class="trust-item"><span class="check" aria-hidden="true">&#10003;</span>Licensed life insurance broker</span>
-        <span class="trust-item"><span class="check" aria-hidden="true">&#10003;</span>Licensed in every state below</span>
-      </div>
-      <button type="button" class="trust-seal" id="verifyInfoTrigger"
-        aria-haspopup="dialog" aria-expanded="false" aria-controls="verifyInfo">
-        <svg class="seal-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M12 2 L20 5 V11 C20 16 16.5 19.5 12 21 C7.5 19.5 4 16 4 11 V5 Z"
-            fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-width="1.3"/>
-          <path d="M8.4 12 l2.4 2.4 L15.8 9" fill="none" stroke="currentColor"
-            stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="seal-text">Verified by VerifyAnAgent</span>
-        <span class="seal-cta">&middot; How this works &#9656;</span>
-      </button>
+      <p class="trust-statement">This agent has completed a federal background check and FBI fingerprint screening, is a licensed life insurance broker, and is licensed in every state listed below.</p>
     </div>
   </div>
   </header>
@@ -973,30 +929,12 @@
     <div class="info-modal">
       <button class="info-close" id="verifyInfoClose" aria-label="Close">&times;</button>
       <h2 id="verifyInfoTitle">How this verification works</h2>
-      <div class="info-block">
-        <strong>Independent verification</strong>
-        <p>VerifyAnAgent independently confirms the identity and active licensing of every agent it publishes &mdash; this page is not self-reported.</p>
-      </div>
-      <div class="info-block">
-        <strong>Identity vetting</strong>
-        <p>Before publication, every agent clears a federal criminal background check and FBI fingerprint-based screening.</p>
-      </div>
-      <div class="info-block">
-        <strong>Active licensing, re-checked</strong>
-        <p>Licenses are re-verified on a recurring schedule against each state&rsquo;s insurance regulator, so a lapse is reflected on this page.</p>
-      </div>
-      <div class="info-block">
-        <strong>Confirm it yourself</strong>
-        <p>Every &ldquo;Verify License&rdquo; button below links to the state regulator&rsquo;s own public lookup, so you can confirm each license independently.</p>
-      </div>
-      <div class="info-block">
-        <strong>Accountability</strong>
-        <p>If an agent&rsquo;s license is suspended or revoked, or they are convicted of insurance-related misconduct, this verification page is removed.</p>
-      </div>
-      <div class="info-block">
-        <strong>Misuse is a federal crime</strong>
-        <p>Misusing a client&rsquo;s personal or health information carries federal penalties of up to $250,000 in fines and 10 years in prison under HIPAA (42 U.S.C. &sect; 1320d-6); insurance-business fraud carries up to 10&ndash;15 years under 18 U.S.C. &sect; 1033.</p>
-      </div>
+      <p><strong>Independent verification.</strong> VerifyAnAgent independently confirms the identity and active licensing of every agent it publishes. The information on this page is not self-reported.</p>
+      <p><strong>Identity vetting.</strong> Before publication, every agent clears a federal criminal background check and an FBI fingerprint-based screening.</p>
+      <p><strong>Active licensing.</strong> Licenses are re-verified on a recurring schedule against each state's insurance regulator, so that a lapse is reflected on this page.</p>
+      <p><strong>Independent confirmation.</strong> Every Verify License button below links to the state regulator's own public lookup, so that you may confirm each license yourself.</p>
+      <p><strong>Accountability.</strong> If an agent's license is suspended or revoked, or the agent is convicted of insurance-related misconduct, this verification page is removed.</p>
+      <p><strong>Misuse is a federal crime.</strong> Misuse of a client's personal or health information carries federal penalties of up to 250,000 dollars in fines and 10 years in prison under HIPAA, 42 U.S.C. 1320d-6. Insurance-business fraud carries penalties of up to 10 to 15 years under 18 U.S.C. 1033.</p>
     </div>
   </div>
 
