@@ -35,7 +35,9 @@ $Sources = @(
     's3_manager.py',
     'site_generator.py',
     'state_data.py',
-    'cert_ocr.py'
+    'cert_ocr.py',
+    'notify.py',
+    'sitemap.py'
 )
 
 # Load deploy config (bucket / distribution ids) for the optional admin-site sync.

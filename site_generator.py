@@ -1,7 +1,18 @@
 # site_generator.py
 import os
+import json
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
+
+
+def _clip(text, limit):
+    """Collapse whitespace and trim to <= limit chars on a word boundary, adding
+    an ellipsis if the text had to be cut. Used to keep meta descriptions tidy."""
+    text = ' '.join(text.split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit - 1].rsplit(' ', 1)[0].rstrip('.,;:')
+    return f'{cut}…'
 
 
 def _contrast_text_color(hex_color):
@@ -63,6 +74,57 @@ def render(record, slug, asset_map, states):
         primary_color = ''
         brand_text_color = ''
 
+    # ── SEO metadata — derived entirely from data already resolved above, so
+    # every generated agent page ships crawlable meta tags + structured data. ──
+    agent_name  = fields.get('name', 'Agent')
+    agency_name = fields.get('agency_name', fields.get('name', 'Insurance Agency'))
+    agent_npn   = str(fields.get('npn', '')).strip()
+    profile_pic = asset_map.get('profile_pic') or 'profile.jpg'
+    site_url    = f'https://{slug}.verifyanagent.com'
+    og_image    = f'{site_url}/{profile_pic}'
+
+    # State names for the description + JSON-LD areaServed.
+    state_names = [s['name'] for s in states if s.get('name')]
+    if state_names:
+        shown = ', '.join(state_names[:3])
+        if len(state_names) > 3:
+            shown += f' and {len(state_names) - 3} more'
+        licensed_clause = f' Licensed in {shown}.'
+    else:
+        licensed_clause = ''
+
+    meta_description = _clip(
+        f"Verify {agent_name}'s insurance license with {agency_name}.{licensed_clause} "
+        f"Credentials independently confirmed against official state Department of "
+        f"Insurance records and the National Producer Number registry.",
+        160,
+    )
+
+    # schema.org structured data. InsuranceAgency (a LocalBusiness) is the strongest
+    # fit for ranking on '<name> life insurance agent [state]' queries. Built in
+    # Python and JSON-encoded so the template just prints it verbatim.
+    ld = {
+        '@context': 'https://schema.org',
+        '@type': 'InsuranceAgency',
+        'name': agent_name,
+        'url': site_url,
+        'image': og_image,
+        'description': meta_description,
+        'knowsAbout': ['Life Insurance', 'Insurance License Verification'],
+    }
+    if agency_name and agency_name != agent_name:
+        ld['parentOrganization'] = {'@type': 'Organization', 'name': agency_name}
+    if agent_npn:
+        ld['identifier'] = {
+            '@type': 'PropertyValue',
+            'propertyName': 'National Producer Number (NPN)',
+            'value': agent_npn,
+        }
+    if state_names:
+        ld['areaServed'] = [{'@type': 'State', 'name': n} for n in state_names]
+    # Escape '<' so a stray '</script>' in any value can't break out of the tag.
+    json_ld = json.dumps(ld, ensure_ascii=False).replace('<', '\\u003c')
+
     # Build the full context dict — everything the template can access
     context = {
         # Agent identity
@@ -93,7 +155,13 @@ def render(record, slug, asset_map, states):
 
         # Footer
         'year': '2026',
-        'site_url': f'https://{slug}.verifyanagent.com',
+        'site_url': site_url,
+
+        # SEO / social metadata
+        'canonical_url':    site_url,
+        'og_image':         og_image,
+        'meta_description': meta_description,
+        'json_ld':          json_ld,
     }
 
     return template.render(**context)

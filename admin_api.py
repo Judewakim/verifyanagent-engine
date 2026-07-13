@@ -18,14 +18,19 @@ import time
 import hmac
 import base64
 import hashlib
+import urllib.parse
 from pathlib import Path
 
 import requests
+import boto3
 
 import airtable_client
 import s3_manager
 import builder
 import state_data
+
+# SSM client for the admin credential (stored privately, see CRED_PARAM below).
+ssm = boto3.client('ssm')
 
 # ── Config ────────────────────────────────────────────────────────────────────
 TOKEN_TTL_SECONDS = 12 * 60 * 60   # 12 hours
@@ -36,9 +41,12 @@ TOKEN_TTL_SECONDS = 12 * 60 * 60   # 12 hours
 ADMIN_EMAIL = 'you@example.com'
 
 # The password is NOT an env var — it's set by Jude on first sign-in and can be
-# changed in the portal. We store a salted PBKDF2 hash in a private S3 object
-# (not under agents/, so it is never served by the public site).
-CRED_KEY          = '_admin/credentials.json'
+# changed in the portal. We store the salted PBKDF2 hash in SSM Parameter Store as a
+# KMS-encrypted SecureString. It used to live in an S3 object under _admin/, but the
+# apex host serves the bucket ROOT, so that object was web-reachable
+# (verifyanagent.com/_admin/credentials.json). SSM is private — nothing in the HTTP
+# path can return it.
+CRED_PARAM        = '/verifyanagent/admin/credentials'
 PBKDF2_ITERATIONS = 200_000
 MIN_PASSWORD_LEN  = 8
 
@@ -80,7 +88,10 @@ RESERVED_SLUGS = {
 }
 
 # Fields surfaced (read-only) alongside the editable ones in the detail view.
-_READ_FIELDS = ('name', 'email', 'npn', 'site_status', 'site_url', 'build_notes')
+# build_notes_ack holds the build_notes text an admin has "marked as reviewed" — the
+# detail view compares it against the current build_notes to decide whether the page
+# still needs review (see renderReviewBanner / _list_agents).
+_READ_FIELDS = ('name', 'email', 'npn', 'site_status', 'site_url', 'build_notes', 'build_notes_ack')
 
 _ALLOWED_IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'}
 
@@ -199,11 +210,12 @@ def _hash_password(password, salt_hex, iterations):
 
 
 def _load_credentials():
-    """Return the stored credential dict, or None if no password has been set yet."""
+    """Return the stored credential dict, or None if no password has been set yet.
+    The value is a KMS-encrypted SecureString in SSM Parameter Store (private)."""
     try:
-        obj = s3_manager.s3.get_object(Bucket=os.environ['S3_BUCKET'], Key=CRED_KEY)
-        return json.loads(obj['Body'].read())
-    except s3_manager.s3.exceptions.NoSuchKey:
+        resp = ssm.get_parameter(Name=CRED_PARAM, WithDecryption=True)
+        return json.loads(resp['Parameter']['Value'])
+    except ssm.exceptions.ParameterNotFound:
         return None
 
 
@@ -216,11 +228,11 @@ def _save_credentials(password):
         'iterations': PBKDF2_ITERATIONS,
         'updated_at': int(time.time()),
     }
-    s3_manager.s3.put_object(
-        Bucket=os.environ['S3_BUCKET'],
-        Key=CRED_KEY,
-        Body=json.dumps(cred).encode('utf-8'),
-        ContentType='application/json',
+    ssm.put_parameter(
+        Name=CRED_PARAM,
+        Value=json.dumps(cred),
+        Type='SecureString',
+        Overwrite=True,
     )
 
 
@@ -293,20 +305,38 @@ def _change_password(event):
 
 
 def _list_agents(event):
-    records = airtable_client.list_all(
-        fields=['name', 'subdomain', 'email', 'site_status', 'site_url']
-    )
+    _fields = ['name', 'subdomain', 'email', 'site_status', 'site_url', 'build_notes', 'build_notes_ack']
+    try:
+        records = airtable_client.list_all(fields=_fields)
+    except requests.HTTPError:
+        # build_notes_ack may not exist yet — Airtable 422s on an unknown field name,
+        # which would otherwise 500 the whole client list. Retry without it; the
+        # review-acknowledgement feature stays dormant until the field is added.
+        records = airtable_client.list_all(fields=[f for f in _fields if f != 'build_notes_ack'])
     agents = []
     for r in records:
         f = r['fields']
         name = f.get('name', '')
+        status = f.get('site_status', '')
+        notes = (f.get('build_notes') or '').strip()
+        ack = (f.get('build_notes_ack') or '').strip()
+        # A page "needs review" when the build errored or left warnings. The build
+        # writes 'Build completed with no issues.' when clean, so anything else is
+        # a real note. (Keeps the trigger in sync with builder.py's build_notes.)
+        # An admin can "mark as reviewed", which stores the current build_notes in
+        # build_notes_ack — while the notes still match that ack, the flag is cleared.
+        # A new/changed warning on the next publish no longer matches, so it re-flags.
+        raw_needs = status == 'error' or (bool(notes) and notes != 'Build completed with no issues.')
+        needs_review = raw_needs and notes != ack
         agents.append({
-            'id':          r['id'],
-            'name':        name,
-            'email':       f.get('email', ''),
-            'slug':        s3_manager.resolve_slug(f),
-            'site_status': f.get('site_status', ''),
-            'site_url':    f.get('site_url', ''),
+            'id':           r['id'],
+            'name':         name,
+            'email':        f.get('email', ''),
+            'slug':         s3_manager.resolve_slug(f),
+            'site_status':  status,
+            'site_url':     f.get('site_url', ''),
+            'needs_review': needs_review,
+            'build_notes':  notes if needs_review else '',
         })
     agents.sort(key=lambda a: a['name'].lower())
     return _respond(200, {'agents': agents})
@@ -354,6 +384,31 @@ def _first_attachment_url(attachments):
     return None
 
 
+def _verify_home(url):
+    """The licensing board's homepage origin for a state's verify-URL template —
+    shown as a placeholder hint in the admin's custom-verify-link box so the
+    operator knows where to go look the agent up. '' when the state has no
+    configured URL (e.g. NY)."""
+    if not url:
+        return ''
+    p = urllib.parse.urlparse(url)
+    if not p.scheme or not p.netloc:
+        return ''
+    return f"{p.scheme}://{p.netloc}/"
+
+
+def _cert_states(fields):
+    """Ordered list of state abbrevs the agent already has a cert PDF for, matched
+    from the cert_uploads attachment filenames the SAME way the build does — so the
+    admin UI shows an accurate 'uploaded / not set' per state."""
+    out = []
+    for att in fields.get(CERT_FIELD, []) or []:
+        ab = state_data.match_state_from_filename(att.get('filename', ''))
+        if ab and ab not in out:
+            out.append(ab)
+    return out
+
+
 def _get_agent(event, record_id):
     record = airtable_client.get_by_id(record_id)
     f = record.get('fields', {})
@@ -370,9 +425,13 @@ def _get_agent(event, record_id):
         'read':     {k: f.get(k) for k in _READ_FIELDS},
         'editable': editable,
         'images':   images,
-        # Reference data so the UI can render the state picker / labels.
+        # States that already have a cert PDF, so the UI can label each row.
+        'cert_states': _cert_states(f),
+        # Reference data so the UI can render the state picker / labels. verify_home
+        # is the board homepage the operator would look the agent up on, used as the
+        # custom-verify-link placeholder.
         'all_states': [
-            {'abbrev': ab, 'name': info['name']}
+            {'abbrev': ab, 'name': info['name'], 'verify_home': _verify_home(info.get('url'))}
             for ab, info in sorted(state_data.STATES.items(), key=lambda x: x[1]['name'])
         ],
     })
@@ -456,6 +515,21 @@ def _publish(event, record_id):
         'warnings':      result['warnings'],
         'warning_count': result['warning_count'],
     })
+
+
+def _mark_reviewed(event, record_id):
+    """Acknowledge the current build warnings so the 'Needs review' flag clears.
+    Copies the record's CURRENT build_notes into build_notes_ack (server-side, not a
+    client-supplied value). The flag stays cleared while the notes match this ack; a
+    new/changed warning on a later publish no longer matches and re-flags."""
+    record = airtable_client.get_by_id(record_id)
+    notes  = (record['fields'].get('build_notes') or '').strip()
+    try:
+        airtable_client.update(record_id, {'build_notes_ack': notes})
+    except Exception as e:
+        return _respond(500, {'error': "Could not save review acknowledgement "
+                              f"(does the 'build_notes_ack' Long-text field exist in Airtable?): {e}"})
+    return _respond(200, {'ok': True})
 
 
 # ── Public signup (the brand-styled creation form on the apex site) ────────────
@@ -565,10 +639,9 @@ def _check_subdomain(event):
     return _respond(200, {'slug': slug, 'available': True})
 
 
-def _signup_cert_url(event, record_id):
-    """Step 1 of a cert upload: presign a PUT for one state's certificate PDF."""
-    if not _signup_editable(record_id):
-        return _respond(403, {'error': 'not a pending signup'})
+def _cert_url_core(event, record_id):
+    """Presign a PUT for one state's certificate PDF. Shared by the public signup
+    flow and the authenticated admin editor — the caller enforces access first."""
     body = _parse_body(event)
     abbrev = (body.get('abbrev') or '').strip().upper()
     filename = body.get('filename', '')
@@ -590,6 +663,13 @@ def _signup_cert_url(event, record_id):
         ExpiresIn=900,
     )
     return _respond(200, {'uploadUrl': upload_url, 'key': key, 'abbrev': abbrev, 'contentType': content_type})
+
+
+def _signup_cert_url(event, record_id):
+    """Step 1 of a cert upload (public signup): presign a PUT for one state's cert."""
+    if not _signup_editable(record_id):
+        return _respond(403, {'error': 'not a pending signup'})
+    return _cert_url_core(event, record_id)
 
 
 def _signup_certs(event, record_id):
@@ -618,6 +698,59 @@ def _signup_certs(event, record_id):
         return _respond(400, {'error': 'no valid certificates supplied'})
     airtable_client.set_attachments(record_id, CERT_FIELD, items)
     return _respond(200, {'ok': True, 'count': len(items)})
+
+
+# ── Admin cert upload (authenticated; works on already-paid agents) ────────────
+# The signup routes above REFUSE paid records and REPLACE the whole cert field —
+# right for a brand-new signup, wrong for editing a live agent. These admin routes
+# have no pending-only guard (the auth wall in handler() gates them) and MERGE by
+# state: uploading a cert for one state swaps just that state's PDF and leaves every
+# other state's cert intact.
+def _admin_cert_url(event, record_id):
+    """Step 1: presign a PUT for one state's certificate PDF (admin editor)."""
+    return _cert_url_core(event, record_id)
+
+
+def _admin_certs(event, record_id):
+    """Step 2: after the browser PUT each cert to S3, merge them into cert_uploads.
+    Keyed by state — a new cert for a state REPLACES that state's existing PDF and
+    leaves the other states' certs untouched (retained by their Airtable id)."""
+    body = _parse_body(event)
+    certs = body.get('certs') or []
+
+    # The new/replacement certs, keyed by state abbrev.
+    new_by_abbrev = {}
+    for c in certs:
+        key = c.get('key')
+        abbrev = (c.get('abbrev') or '').strip().upper()
+        if not key or abbrev not in state_data.STATES:
+            continue
+        get_url = s3_manager.s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': os.environ['S3_BUCKET'], 'Key': key},
+            ExpiresIn=3600,
+        )
+        new_by_abbrev[abbrev] = {'url': get_url, 'filename': f'{abbrev}.pdf'}
+
+    if not new_by_abbrev:
+        return _respond(400, {'error': 'no valid certificates supplied'})
+
+    # Retain every existing attachment whose state is NOT being replaced (by its
+    # Airtable id); drop the ones a new upload supersedes; then add the new certs.
+    record = airtable_client.get_by_id(record_id)
+    existing = record.get('fields', {}).get(CERT_FIELD, []) or []
+    merged = []
+    for att in existing:
+        abbrev = state_data.match_state_from_filename(att.get('filename', ''))
+        if abbrev in new_by_abbrev:
+            continue   # this state is being replaced by a fresh upload
+        att_id = att.get('id')
+        if att_id:
+            merged.append({'id': att_id})   # keep the existing file as-is
+    merged.extend(new_by_abbrev.values())
+
+    airtable_client.set_attachments(record_id, CERT_FIELD, merged)
+    return _respond(200, {'ok': True, 'count': len(new_by_abbrev), 'total': len(merged)})
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -693,8 +826,14 @@ def handler(event, context):
                 return _route(_image_upload_url, event, record_id)
             if action == 'image' and method == 'POST':
                 return _route(_image_attach, event, record_id)
+            if action == 'cert-url' and method == 'POST':
+                return _route(_admin_cert_url, event, record_id)
+            if action == 'certs' and method == 'POST':
+                return _route(_admin_certs, event, record_id)
             if action == 'publish' and method == 'POST':
                 return _route(_publish, event, record_id)
+            if action == 'review' and method == 'POST':
+                return _route(_mark_reviewed, event, record_id)
 
     return _respond(404, {'error': 'not found', 'path': path, 'method': method})
 

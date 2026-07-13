@@ -111,12 +111,43 @@ table.agents tr:last-child td { border-bottom: none; }
 .editor-actions { display: flex; gap: 8px; }
 .editor-actions button.secondary { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; }
 .saved-flash { color: var(--ok); font-size: 12px; }
+
+/* "Needs review" affordances: list badge, list filter toggle, detail banner. */
+.review-badge {
+  display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px; background: #fdecea; color: var(--err);
+  white-space: nowrap; cursor: help;
+}
+.review-filter {
+  flex-direction: row; align-items: center; gap: 6px; margin: 0 0 12px;
+  font-size: 13px; color: var(--muted); cursor: pointer;
+}
+.review-filter input { width: auto; margin: 0; }
+.banner.review {
+  background: #fdecea; border-color: #f5c6c0; color: #922;
+  white-space: pre-wrap; word-break: break-word;
+}
+.banner.review .review-actions { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+.banner.review button {
+  background: #fff; border: 1px solid #f5c6c0; color: #922; border-radius: 8px;
+  padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.banner.review button:disabled { opacity: .6; cursor: default; }
+.banner.review #mark-reviewed-status { font-size: 12px; }
 .warn { color: #b54708; background: #fff4e5; border: 1px solid #f5c98a; border-radius: 6px; padding: 7px 10px; font-size: 12px; margin: 0; }
 
 /* Licensing table */
-.lic-grid { display: grid; grid-template-columns: 70px 1fr 1.4fr; gap: 8px 12px; align-items: center; margin-bottom: 14px; }
+.lic-grid { display: grid; grid-template-columns: 60px 1fr 1.4fr 130px; gap: 8px 12px; align-items: center; margin-bottom: 14px; }
 .lic-grid .head { font-size: 12px; color: var(--muted); font-weight: 600; }
 .lic-grid .state-abbrev { font-weight: 600; }
+
+/* Per-state certificate cell */
+.cert-cell { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.cert-state { font-size: 12px; white-space: nowrap; }
+.cert-state.has { color: var(--ok); }
+.cert-state.none { color: var(--muted); }
+.cert-upload { font-size: 12px; font-weight: 600; color: var(--blue); cursor: pointer; text-decoration: underline; white-space: nowrap; }
+.cert-upload:hover { opacity: .8; }
 
 /* Images */
 .img-row { display: flex; align-items: center; gap: 16px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }

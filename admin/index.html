@@ -73,6 +73,7 @@
     <section id="list-view" class="view" hidden>
       <h1>Clients</h1>
       <input type="search" id="agent-filter" placeholder="Filter by name or email…" />
+      <label class="review-filter"><input type="checkbox" id="review-filter" /> Needs review only</label>
       <table class="agents">
         <thead>
           <tr><th>Name</th><th>Email</th><th>Status</th><th></th></tr>
@@ -85,6 +86,7 @@
     <section id="detail-view" class="view" hidden>
       <button class="link-btn" id="back-btn">&larr; Back to clients</button>
       <div id="detail-header"></div>
+      <div id="review-banner" class="banner review" hidden></div>
       <div id="unpublished-banner" class="banner" hidden>
         You have unpublished changes. Click <strong>Publish</strong> to push them live.
       </div>

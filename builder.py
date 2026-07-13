@@ -16,6 +16,7 @@ import s3_manager
 import site_generator
 import state_data
 import cert_ocr
+import notify
 
 
 def _parse_license_numbers(text):
@@ -108,6 +109,15 @@ def build_site(record, *, update_status=True):
     license_numbers = {}
 
     def _result(ok):
+        # Alert the operator (Slack -> phone) when a build needs a human look: an OCR
+        # miss, a name mismatch, or an asset/upload failure. Best-effort — a failed
+        # alert must never affect the build result. Most valuable on the unattended
+        # Stripe-webhook path; on a manual admin publish it's a harmless extra ping.
+        if errors:
+            try:
+                notify.notify_review(agent_name, record_id, site_url, errors, ok=ok)
+            except Exception as _e:
+                print(f"Review alert error (non-fatal): {_e}")
         return {
             'ok':              ok,
             'slug':            slug,
@@ -135,9 +145,12 @@ def build_site(record, *, update_status=True):
         errors.append(f"CRITICAL: Asset upload failed entirely:\n{err}")
         asset_map = {'certs': {}}  # continue with empty assets
 
-    # ── 3. OCR every uploaded cert to extract its state license number ───────
-    # Every state card displays its license number, so OCR runs on every cert.
-    # The manual override always wins over OCR — that's how Jude corrects misreads.
+    # ── 3. OCR every uploaded cert: license number + name self-consistency ───
+    # Every state card displays its license number, so OCR runs on every cert. The
+    # same pass also reads the name printed on the cert and flags it (a soft warning
+    # in build_notes) if it doesn't match the agent's form name — a free fraud/error
+    # check on data we already collect. OCR runs even for override/NPN states so the
+    # name check covers every cert; the manual override still wins for the number.
     print("Extracting license numbers from cert PDFs...")
     cert_map      = asset_map.get('certs', {})
     override_dict = _parse_license_numbers(fields.get('license_numbers_override', ''))
@@ -147,15 +160,37 @@ def build_site(record, *, update_status=True):
         state_info = state_data.STATES.get(abbrev)
         if not state_info:
             continue   # unknown state code — skipped
-        if abbrev in override_dict:
-            continue   # manual override exists — skip OCR to save the API call
-        if abbrev in state_data.LICENSE_IS_NPN:
-            continue   # license number is the NPN here — set below, no OCR needed
+
+        # Whether we still need a license number from OCR. A manual override wins, and
+        # LICENSE_IS_NPN states use the NPN (set below) — but we still OCR the cert in
+        # those cases so the name self-consistency check runs on every uploaded cert.
+        need_license = abbrev not in override_dict and abbrev not in state_data.LICENSE_IS_NPN
+
         try:
             pdf_bytes = s3_manager.download_cert(slug, abbrev)
-            number    = cert_ocr.extract_license_number(
-                pdf_bytes, abbrev, state_info['name']
+            cert      = cert_ocr.extract_cert(pdf_bytes, abbrev, state_info['name'], agent_name)
+        except Exception as e:
+            errors.append(f"OCR step failed for {abbrev}: {e}")
+            continue
+
+        if cert is None:
+            errors.append(f"OCR step failed for {abbrev}: the vision API call returned no result.")
+            continue
+
+        # Name self-consistency check (runs on every cert). name_matches is only False
+        # when the model is confident the cert names a different person (it returns
+        # null when it can't tell), so flag that as a soft warning — never block the
+        # build. Skip when we don't have a real agent name to compare against.
+        if cert.name_matches is False and agent_name != 'Unknown Agent':
+            errors.append(
+                f"NAME MISMATCH: {abbrev} certificate is issued to "
+                f"\"{cert.name_on_cert}\", but the agent's name is \"{agent_name}\". "
+                f"Verify this certificate belongs to the agent."
             )
+
+        # License number — only when we don't already have one from an override/NPN.
+        if need_license:
+            number = cert_ocr.usable_license_number(cert)
             if number:
                 ocr_results[abbrev] = number
             else:
@@ -163,8 +198,6 @@ def build_site(record, *, update_status=True):
                     f"OCR could not extract a license number for {abbrev} from the cert PDF. "
                     f"Add it manually to license_numbers_override in Airtable as '{abbrev}: <number>'."
                 )
-        except Exception as e:
-            errors.append(f"OCR step failed for {abbrev}: {e}")
 
     # Merge: manual override wins over OCR
     license_numbers = {**ocr_results, **override_dict}
@@ -244,6 +277,16 @@ def build_site(record, *, update_status=True):
         except Exception as e:
             print(f"Could not write license_numbers_ocr "
                   f"(verify the field exists and is type 'Long text'): {e}")
+
+    # ── 8. Refresh the sitemap + public agent directory (best-effort) ─────────
+    # Both are regenerated from the full set of BUILT agents so this newly-published
+    # page becomes crawlable (listed in sitemap.xml and linked from directory.html).
+    # Never let this fail the build — the site itself is already live above.
+    try:
+        import sitemap
+        sitemap.build_and_upload()
+    except Exception as e:
+        print(f"Sitemap/directory refresh failed (non-fatal): {e}")
 
     print(f"=== BUILD COMPLETE ===\nSite URL: {site_url}\nBuild notes:\n{build_notes}")
     return _result(True)

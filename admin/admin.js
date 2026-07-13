@@ -144,22 +144,38 @@ async function loadAgents() {
   allAgents = data.agents;
   renderAgents();
   showView('list-view');
+  openHashAgent();   // if we arrived via an admin deep link (#recXXX from a Slack alert)
+}
+
+// Deep link: a Slack "needs review" alert links to admin.../#<recordId>. Open that
+// agent once, then consume the hash so navigating back doesn't reopen it.
+async function openHashAgent() {
+  const id = (location.hash || '').replace(/^#/, '').trim();
+  if (!id.startsWith('rec')) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  try { await openAgent(id); } catch (e) { /* not found or token expired */ }
 }
 
 function renderAgents() {
   const term = document.getElementById('agent-filter').value.toLowerCase();
+  const reviewEl = document.getElementById('review-filter');
+  const reviewOnly = reviewEl && reviewEl.checked;
   const rows = document.getElementById('agent-rows');
   rows.innerHTML = '';
   allAgents
     .filter((a) => !term || a.name.toLowerCase().includes(term) || a.email.toLowerCase().includes(term))
+    .filter((a) => !reviewOnly || a.needs_review)
     .forEach((a) => {
       const tr = document.createElement('tr');
       const status = a.site_status || '—';
       const dirty = sessionStorage.getItem('dirty:' + a.id) ? ' • unpublished' : '';
+      const review = a.needs_review
+        ? ' <span class="review-badge" title="' + esc(a.build_notes || 'This page needs review') + '">⚠ Needs review</span>'
+        : '';
       tr.innerHTML =
         '<td>' + esc(a.name) + '</td>' +
         '<td>' + esc(a.email) + '</td>' +
-        '<td><span class="status-pill ' + esc(status) + '">' + esc(status) + '</span>' + dirty + '</td>' +
+        '<td><span class="status-pill ' + esc(status) + '">' + esc(status) + '</span>' + dirty + review + '</td>' +
         '<td><button class="link-btn">Edit</button></td>';
       tr.querySelector('button').addEventListener('click', () => openAgent(a.id));
       rows.appendChild(tr);
@@ -167,6 +183,7 @@ function renderAgents() {
 }
 
 document.getElementById('agent-filter').addEventListener('input', renderAgents);
+document.getElementById('review-filter').addEventListener('change', renderAgents);
 document.getElementById('back-btn').addEventListener('click', () => { current = null; loadAgents(); });
 
 // ── Agent detail ──────────────────────────────────────────────────────────────
@@ -191,8 +208,48 @@ function renderHeader() {
     ' · status: ' + esc(r.site_status || '—') + '</p>';
 }
 
+function renderReviewBanner() {
+  const el = document.getElementById('review-banner');
+  if (!el) return;
+  const notes = (current.read.build_notes || '').trim();
+  const ack = (current.read.build_notes_ack || '').trim();
+  const status = current.read.site_status || '';
+  // "Needs review" clears once an admin has acknowledged the current notes (ack ==
+  // notes). A new/changed warning on a later publish no longer matches, so it re-flags.
+  const raw = status === 'error' || (notes && notes !== 'Build completed with no issues.');
+  const needs = raw && notes !== ack;
+  if (needs) {
+    el.innerHTML =
+      '<strong>⚠ This page needs review.</strong><br>' +
+      esc(notes).replace(/\n/g, '<br>') +
+      '<div class="review-actions"><button id="mark-reviewed-btn" class="secondary">Mark as reviewed</button>' +
+      '<span id="mark-reviewed-status"></span></div>';
+    el.hidden = false;
+    document.getElementById('mark-reviewed-btn').addEventListener('click', markReviewed);
+  } else {
+    el.hidden = true;
+  }
+}
+
+async function markReviewed() {
+  const btn = document.getElementById('mark-reviewed-btn');
+  const status = document.getElementById('mark-reviewed-status');
+  btn.disabled = true;
+  status.textContent = 'Saving…';
+  try {
+    await api('POST', '/admin/agents/' + current.id + '/review');
+    // Mirror what the server stored so the banner clears without a reload.
+    current.read.build_notes_ack = current.read.build_notes;
+    renderReviewBanner();
+  } catch (ex) {
+    btn.disabled = false;
+    status.textContent = ' ' + ex.message;
+  }
+}
+
 function renderDetail() {
   renderHeader();
+  renderReviewBanner();
   document.getElementById('unpublished-banner').hidden = !sessionStorage.getItem('dirty:' + current.id);
 
   renderFields();
@@ -300,20 +357,71 @@ function renderLicensing() {
   picker.appendChild(grid);
   wrap.appendChild(picker);
 
+  // abbrev → licensing board homepage, used as a helpful verify-link placeholder
+  // so the operator knows exactly where to go look the agent up.
+  const homes = {};
+  (current.all_states || []).forEach((s) => { homes[s.abbrev] = s.verify_home || ''; });
+  const certStates = new Set(current.cert_states || []);
+
   // Per-state rows for selected states
   const head = document.createElement('div');
   head.className = 'lic-grid';
-  head.innerHTML = '<span class="head">State</span><span class="head">License #</span><span class="head">Custom verify link</span>';
+  head.innerHTML = '<span class="head">State</span><span class="head">License #</span>' +
+    '<span class="head">Custom verify link</span><span class="head">Certificate</span>';
   wrap.appendChild(head);
 
   Array.from(selected).sort().forEach((ab) => {
     const grid2 = document.createElement('div');
     grid2.className = 'lic-grid';
+    const urlPlaceholder = homes[ab] || 'https://… (exact licensee URL)';
+    const hasCert = certStates.has(ab);
     grid2.innerHTML =
       '<span class="state-abbrev">' + esc(ab) + '</span>' +
-      '<input type="text" data-lic="' + ab + '" value="' + esc(licenseNums[ab] || '') + '" placeholder="(none)">' +
-      '<input type="url" data-url="' + ab + '" value="' + esc(verifyUrls[ab] || '') + '" placeholder="https://… (for FL-type states)">';
+      '<input type="text" data-lic="' + ab + '" value="' + esc(licenseNums[ab] || '') + '" placeholder="auto-filled if blank">' +
+      '<input type="url" data-url="' + ab + '" value="' + esc(verifyUrls[ab] || '') + '" placeholder="' + esc(urlPlaceholder) + '">' +
+      '<span class="cert-cell">' +
+        '<span class="cert-state ' + (hasCert ? 'has' : 'none') + '">' + (hasCert ? '✓ cert' : 'no cert') + '</span>' +
+        '<label class="cert-upload">' + (hasCert ? 'Replace' : 'Upload') +
+          '<input type="file" accept="application/pdf" hidden></label>' +
+      '</span>';
+
+    const fileInput = grid2.querySelector('input[type=file]');
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const statusEl = grid2.querySelector('.cert-state');
+      statusEl.textContent = 'Uploading…';
+      statusEl.className = 'cert-state';
+      try {
+        await uploadCert(ab, file);
+        // Reflect locally so a later re-render keeps the "uploaded" state.
+        if (!current.cert_states) current.cert_states = [];
+        if (!current.cert_states.includes(ab)) current.cert_states.push(ab);
+        statusEl.textContent = '✓ cert (unpublished)';
+        statusEl.className = 'cert-state has';
+        markDirty();
+      } catch (ex) {
+        statusEl.textContent = 'Upload failed';
+        statusEl.className = 'cert-state none';
+        alert('Cert upload failed: ' + ex.message);
+      }
+    });
     wrap.appendChild(grid2);
+  });
+}
+
+// Two-step cert upload: presign a PUT, send the PDF straight to S3, then point the
+// agent's cert_uploads field at it (backend merges by state — replaces just this
+// state's cert, keeps the rest). Mirrors uploadImage().
+async function uploadCert(abbrev, file) {
+  const ct = file.type || 'application/pdf';
+  const pre = await api('POST', '/admin/agents/' + current.id + '/cert-url', {
+    abbrev, filename: file.name, contentType: ct,
+  });
+  const put = await fetch(pre.uploadUrl, { method: 'PUT', headers: { 'Content-Type': pre.contentType }, body: file });
+  if (!put.ok) throw new Error('S3 upload failed (' + put.status + ')');
+  await api('POST', '/admin/agents/' + current.id + '/certs', {
+    certs: [{ key: pre.key, abbrev: pre.abbrev }],
   });
 }
 
@@ -387,6 +495,32 @@ async function uploadImage(field, file) {
   });
 }
 
+// Poll the true build status after a publish request. The publish POST runs the whole
+// build synchronously and often exceeds the API Gateway ~29s integration timeout, so the
+// browser's fetch() rejects with "Failed to fetch" even though the Lambda keeps building
+// (300s budget) and finishes. build_site writes site_status through building → built/error,
+// so we read that same status the detail view uses until it reaches a terminal state.
+async function pollBuildStatus(id, { tries = 40, delayMs = 3000 } = {}) {
+  for (let i = 0; i < tries; i++) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    let r;
+    try {
+      r = await api('GET', '/admin/agents/' + id);
+    } catch (e) {
+      continue;   // transient read failure — keep polling
+    }
+    const s = (r.read && r.read.site_status) || '';
+    if (s === 'built' || s === 'error') {
+      return {
+        status:      s,
+        site_url:    (r.read.site_url || ''),
+        build_notes: (r.read.build_notes || '').trim(),
+      };
+    }
+  }
+  return { status: 'timeout' };
+}
+
 // Publish
 document.getElementById('publish-btn').addEventListener('click', async () => {
   const btn = document.getElementById('publish-btn');
@@ -402,8 +536,32 @@ document.getElementById('publish-btn').addEventListener('click', async () => {
     status.textContent = (res.ok ? 'Published → ' + res.site_url : 'Build failed') +
       (res.warning_count ? ('  (' + res.warning_count + ' warning(s): ' + res.warnings.join(' | ') + ')') : '');
   } catch (ex) {
-    status.className = 'err';
-    status.textContent = 'Publish failed: ' + ex.message;
+    // A raw fetch() rejection (gateway timeout / dropped connection) arrives as a
+    // TypeError; the api() wrapper throws a plain Error for real 4xx/5xx failures.
+    // On a timeout the build is still running server-side, so poll for the real result
+    // instead of reporting a failure.
+    if (ex instanceof TypeError) {
+      status.className = '';
+      status.textContent = 'Build is taking longer than the gateway allows — checking status…';
+      const outcome = await pollBuildStatus(current.id);
+      if (outcome.status === 'built') {
+        sessionStorage.removeItem('dirty:' + current.id);
+        document.getElementById('unpublished-banner').hidden = true;
+        status.className = 'ok';
+        status.textContent = 'Published → ' + outcome.site_url;
+      } else if (outcome.status === 'error') {
+        status.className = 'err';
+        status.textContent = 'Build failed: ' + (outcome.build_notes || 'see build notes');
+      } else {
+        status.className = '';
+        status.textContent = 'The build is still running in the background. Your edits were saved. ' +
+          'Wait ~30–60s, then reopen this client or hard-refresh the live site to confirm — ' +
+          'the change is usually already live.';
+      }
+    } else {
+      status.className = 'err';
+      status.textContent = 'Publish failed: ' + ex.message;
+    }
   } finally {
     btn.disabled = false;
   }

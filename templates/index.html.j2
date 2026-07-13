@@ -5,11 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>License Verification — {{ agent_name }} | {{ agency_name }}</title>
 
-  <!-- FAVICON -->
-  <link rel="icon" href="{{ logo_icon }}" />
+  <!-- ── SEO / social metadata ─────────────────────────────────────────────
+       Every generated agent page carries a description, a self-referencing
+       canonical (this page's own subdomain URL), Open Graph + Twitter cards,
+       and InsuranceAgency structured data. All values come from the render
+       context (see site_generator.render) — nothing is hand-maintained here. -->
+  <meta name="description" content="{{ meta_description }}" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="{{ canonical_url }}" />
+
+  <meta property="og:type" content="profile" />
+  <meta property="og:site_name" content="VerifyAnAgent" />
+  <meta property="og:title" content="License Verification — {{ agent_name }} | {{ agency_name }}" />
+  <meta property="og:description" content="{{ meta_description }}" />
+  <meta property="og:url" content="{{ canonical_url }}" />
+  <meta property="og:image" content="{{ og_image }}" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="License Verification — {{ agent_name }} | {{ agency_name }}" />
+  <meta name="twitter:description" content="{{ meta_description }}" />
+  <meta name="twitter:image" content="{{ og_image }}" />
+
+  <script type="application/ld+json">{{ json_ld | safe }}</script>
+
+  <!-- FAVICON — the VerifyAnAgent seal (inline SVG data URI), NOT the agent's
+       agency logo, so every verified page carries the VerifyAnAgent mark. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230c2240' stroke='%23fdb81e' stroke-width='3'/%3E%3Cpath d='M50 24 L70 33 V52 C70 66 61 74 50 78 C39 74 30 66 30 52 V33 Z' fill='%23205493' stroke='%23fdb81e' stroke-width='1.6'/%3E%3Cpath d='M41 51 l6 6 l12 -14' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 
   <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- Calendly -->
   <link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet" />
@@ -433,19 +457,73 @@
     }
 
     .trust-strip-inner {
-      padding: 0.45rem 0.75rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0.45rem 1.5rem;
       text-align: center;
     }
 
-    /* Sized in vw so the single line spans the screen width at any width. */
+    /* Flag sits inline at the head of the statement, on the same line as the
+       text (like the toggle sits inline at the end). */
+    .trust-flag {
+      display: inline-block;
+      vertical-align: middle;
+      width: 22px;
+      height: auto;
+      margin-right: 0.45rem;
+      position: relative;
+      top: -1px;
+      border: 1px solid var(--border);
+    }
+
     .trust-statement {
       margin: 0;
       font-family: 'Times New Roman', Times, serif;
-      font-size: 1.2vw;
-      line-height: 1.4;
+      font-size: 0.9rem;
+      line-height: 1.5;
       color: var(--ink-mid);
-      white-space: nowrap;
     }
+
+    /* "Here's how you know" toggle — inline, reads as the next sentence after
+       the statement. Underlined brand-color link, like the homepage banner. */
+    .trust-toggle {
+      display: inline;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      color: var(--blue);
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 0.9rem;
+      text-decoration: underline;
+      white-space: nowrap;
+      vertical-align: baseline;
+    }
+
+    /* Collapsible detail — hidden until the toggle is clicked. Uses the sans
+       font and navy lead-ins to match the homepage's "how you know" panel. */
+    .trust-detail {
+      display: none;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0.2rem 1.5rem 0.75rem;
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      color: var(--ink-mid);
+      line-height: 1.65;
+    }
+
+    .trust-detail.open { display: block; }
+
+    .trust-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 0.4rem;
+      text-align: left;
+    }
+
+    .trust-cols strong { color: var(--blue); font-weight: 700; }
 
     /* "Verified by VerifyAnAgent" seal — pinned to the right end of the nav bar,
        on the same line as the agency logo, with the VerifyAnAgent seal as its
@@ -473,8 +551,10 @@
 
     @media (max-width: 720px) {
       .nav-seal { font-size: 0.6rem; letter-spacing: 0.05em; gap: 0.35rem; }
-      /* Too narrow to fit on one line — drop to a readable size and allow wrap. */
-      .trust-statement { font-size: 0.72rem; white-space: normal; }
+      .trust-statement { font-size: 0.8rem; }
+      .trust-toggle { font-size: 0.8rem; }
+      /* Stack the two explanation columns on narrow screens. */
+      .trust-cols { grid-template-columns: 1fr; gap: 0.8rem; }
     }
 
     @media (max-width: 480px) {
@@ -745,6 +825,57 @@
         display: none;
       }
     }
+
+    /* FOOTER — the agent/agency sits on the left; VerifyAnAgent on the right. */
+    .footer-inner {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+
+    /* VerifyAnAgent column — right-aligned, mirroring the agent brand on the left. */
+    .footer-va {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
+    }
+
+    .footer-va-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .footer-va-brand svg { width: 34px; height: 34px; display: block; flex-shrink: 0; }
+
+    .footer-va-name {
+      font-family: var(--font-serif);
+      font-size: 1.15rem;
+      color: var(--white);
+    }
+
+    .footer-va-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .footer-va-links a {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.5);
+      text-decoration: none;
+      transition: color 0.2s var(--ease);
+    }
+
+    .footer-va-links a:hover { color: var(--white); }
+
+    /* Stack the two columns and left-align VerifyAnAgent on mobile. */
+    @media (max-width: 580px) {
+      .footer-inner { grid-template-columns: 1fr; gap: 2.5rem; }
+      .footer-va { align-items: flex-start; text-align: left; }
+    }
   </style>
 </head>
 <body>
@@ -753,7 +884,13 @@
        above the nav, so it scrolls out of view as the page moves. -->
   <div class="trust-strip">
     <div class="trust-strip-inner">
-      <p class="trust-statement">This person completed a federal background check and FBI fingerprint screening before state licensing. Verify records using links below before providing sensitive information.</p>
+      <p class="trust-statement"><svg class="trust-flag" viewBox="0 0 38 20" xmlns="http://www.w3.org/2000/svg" aria-label="United States flag" role="img"><rect width="38" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.538" width="38" height="1.538"/><rect y="4.615" width="38" height="1.538"/><rect y="7.692" width="38" height="1.538"/><rect y="10.769" width="38" height="1.538"/><rect y="13.846" width="38" height="1.538"/><rect y="16.923" width="38" height="1.538"/></g><rect width="15.2" height="10.769" fill="#3c3b6e"/></svg>Licensed insurance agents pass a background check — and in most states an FBI fingerprint-based screening — before they can be licensed. <button type="button" class="trust-toggle" id="trustToggle" aria-expanded="false" aria-controls="trustDetail">Here's how you know&nbsp;&#9662;</button></p>
+      <div class="trust-detail" id="trustDetail">
+        <div class="trust-cols">
+          <div><strong>Credentials link to official sources.</strong> Every license shown on VerifyAnAgent links directly to the issuing state's Department of Insurance verification portal, where you can confirm the record yourself — independently of this website.</div>
+          <div><strong>Identity is tied to a national registry.</strong> Each agent is identified by their National Producer Number (NPN), the unique identifier assigned through the National Insurance Producer Registry (NIPR) and searchable on the official NIPR registry.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -768,7 +905,7 @@
            the VerifyAnAgent seal as its icon. -->
       <button type="button" class="nav-seal" id="verifyInfoTrigger"
         aria-haspopup="dialog" aria-expanded="false" aria-controls="verifyInfo">
-        <span class="seal-text">Verified by VerifyAnAgent</span>
+        <span class="seal-text">Powered by VerifyAnAgent</span>
         <svg class="seal-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <circle cx="50" cy="50" r="48" fill="#0c2240" stroke="#fdb81e" stroke-width="2.5"/>
           <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>
@@ -793,7 +930,6 @@
   <!-- HERO -->
   <section class="verify-hero">
     <div class="container">
-      <p class="eyebrow">License Verification</p>
       <div class="agent-profile">
         <!-- Drop your photo file (jude-wakim.jpg) into the same folder as this file -->
         <img src="{{ profile_pic }}" alt="{{ agent_name }}" class="agent-photo lightbox-trigger" data-src="{{ profile_pic }}" style="cursor:zoom-in;" />
@@ -887,24 +1023,43 @@
 
   <!-- FOOTER -->
   <footer class="footer">
-    <div class="container footer-inner" style="grid-template-columns: 1fr 1fr;">
+    <div class="container footer-inner">
+      <!-- LEFT — the agent and their agency: logo + contact info. -->
       <div class="footer-brand">
         <a href="#" class="logo">
           <img src="{{ logo_full }}" alt="{{ agency_name }} Logo" class="logo-img" />
         </a>
         <p>Independent life insurance solutions for families who plan ahead.</p>
+        <p style="margin-top:0.9rem;">
+          <a href="mailto:{{ agent_email }}" style="color:rgba(255,255,255,0.5);
+            text-decoration:none;">{{ agent_email }}</a>
+        </p>
       </div>
-      <div class="footer-col">
-        <h4>Contact</h4>
-        <p><a href="mailto:{{ agent_email }}" style="color:rgba(255,255,255,0.5);
-          text-decoration:none;">{{ agent_email }}</a></p>
+
+      <!-- RIGHT — VerifyAnAgent: seal, wordmark, and site links. -->
+      <div class="footer-va">
+        <div class="footer-va-brand">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="50" cy="50" r="48" fill="#0c2240" stroke="#fdb81e" stroke-width="2.5"/>
+            <path d="M50 24 L70 33 V52 C70 66 61 74 50 78 C39 74 30 66 30 52 V33 Z" fill="#205493" stroke="#fdb81e" stroke-width="1.6"/>
+            <path d="M41 51 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="footer-va-name">VerifyAnAgent</span>
+        </div>
+        <ul class="footer-va-links">
+          <li><a href="https://verifyanagent.com">verifyanagent.com</a></li>
+          <li><a href="https://verifyanagent.com/how-to-verify-a-life-insurance-agent">How to verify a life insurance agent</a></li>
+          <li><a href="https://verifyanagent.com/check-insurance-agent-license">How to check an agent's license</a></li>
+          <li><a href="https://verifyanagent.com/terms">Terms of Use</a></li>
+          <li><a href="https://verifyanagent.com/privacy">Privacy Policy</a></li>
+        </ul>
       </div>
     </div>
     <div class="footer-bottom">
       <div class="container">
-        <p>© {{ year }} {{ agency_name }}. All rights reserved. Licensed Life Insurance Agency.
+        <p>© {{ year }} VerifyAnAgent. All rights reserved. Independent Life Insurance Agent Verification.
           &nbsp;|&nbsp;
-          <a href="https://verifyanagent.com" style="color:inherit;">Powered by verifyanagent.com</a>
+          A Wakim Works product
         </p>
       </div>
     </div>
@@ -921,12 +1076,10 @@
         <path d="M41 51 l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
         <g fill="#fdb81e"><circle cx="50" cy="16" r="1.6"/><circle cx="84" cy="50" r="1.6"/><circle cx="50" cy="84" r="1.6"/><circle cx="16" cy="50" r="1.6"/></g>
       </svg>
-      <p>VerifyAnAgent independently confirms the identity and active licensing of every agent it publishes. The information on this page is not self-reported.</p>
-      <p>Before receiving licensing and a National Producer Number, every agent clears a federal criminal background check and an FBI fingerprint-based screening.</p>
-      <p>Licenses are re-verified on a recurring schedule against each state's insurance regulator, so that a lapse is reflected on this page.</p>
+      <p><a href="https://verifyanagent.com" style="color:inherit;">VerifyAnAgent.com</a> independently displays the identity and active licensing of every agent it publishes. The information on this page is drawn from official records and documents.</p>
+      <p>To be licensed, insurance producers must meet their state's requirements, which typically include a background check and, in most states, fingerprinting. Requirements vary by state.</p>
       <p>Every Verify License button below links to the state regulator's own public lookup, so that you may confirm each license yourself.</p>
-      <p>If an agent's license is suspended or revoked, or the agent is convicted of insurance-related misconduct, this verification page is removed.</p>
-      <p>Misuse of a client's personal or health information carries federal penalties of up to 250,000 dollars in fines and 10 years in prison under HIPAA, 42 U.S.C. 1320d-6. Insurance-business fraud carries penalties of up to 10 to 15 years under 18 U.S.C. 1033.</p>
+      <p>Insurance is a federally regulated business. Fraud, theft, or dishonesty in the business of insurance can carry fines and imprisonment of up to 10 years, and up to 15 years in aggravated cases, under 18 U.S.C. 1033. Agents are also bound by the Gramm-Leach-Bliley Act (15 U.S.C. 6801 et seq.) and state insurance-privacy laws to safeguard a client's nonpublic personal information; violations can carry substantial fines and revocation of licensure.</p>
     </div>
   </div>
 
@@ -955,6 +1108,16 @@
         lightbox.classList.remove('open');
       }
     });
+
+    // Trust-strip "Here's how you know" expand/collapse
+    const trustToggle = document.getElementById('trustToggle');
+    const trustDetail = document.getElementById('trustDetail');
+    if (trustToggle && trustDetail) {
+      trustToggle.addEventListener('click', () => {
+        const open = trustDetail.classList.toggle('open');
+        trustToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    }
 
     // Verification info modal (opened by the nav seal)
     const verifyInfo        = document.getElementById('verifyInfo');

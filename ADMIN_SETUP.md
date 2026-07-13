@@ -80,7 +80,8 @@ Create **`env.json`** (don't commit it) with those shared values plus the two ad
   "ANTHROPIC_API_KEY": "...",
   "ADMIN_SESSION_SECRET": "<paste-a-long-random-string>",
   "ADMIN_CORS_ORIGIN": "https://admin.verifyanagent.com",
-  "TURNSTILE_SECRET": "<cloudflare-turnstile-secret-key>"
+  "TURNSTILE_SECRET": "<cloudflare-turnstile-secret-key>",
+  "SLACK_WEBHOOK_URL": "<slack-incoming-webhook-url>"
 } }
 ```
 
@@ -89,6 +90,14 @@ Create **`env.json`** (don't commit it) with those shared values plus the two ad
 (`apex_site/signup.html`; the matching **site** key is pasted into that page's `data-sitekey`).
 If `TURNSTILE_SECRET` is unset, captcha verification is **skipped** (fine for local dev, not
 for production).
+
+**`SLACK_WEBHOOK_URL`** is optional — a Slack Incoming Webhook. When set, any build that ends
+with warnings (OCR miss, name mismatch, upload failure) posts a "needs review" alert to Slack
+with a deep link to the agent in the admin editor (`notify.py`). If unset, alerting is skipped.
+Set it on the **webhook function (`verifyanagent-function`)** — that's the unattended
+pay-then-build path where it matters most — and optionally on `verifyanagent-admin` too (both
+run `builder.build_site`). Optional companion var `ADMIN_URL` overrides the deep-link base
+(default `https://admin.verifyanagent.com`).
 
 **CORS for the signup form:** this Lambda now serves the public signup routes too, so it must
 accept requests from the apex origin. The code allows `admin.verifyanagent.com`,
