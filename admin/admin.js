@@ -49,7 +49,9 @@ async function api(method, path, body) {
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (res.status === 401) { logout(); throw new Error('Session expired — please sign in again.'); }
+  // A 401 only means "session expired" if we actually sent a token. On the login
+  // and setup screens there is no token, so show the server's message instead.
+  if (res.status === 401 && token) { logout(); throw new Error('Session expired — please sign in again.'); }
   const text = await res.text();
   const data = text ? JSON.parse(text) : {};
   if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
