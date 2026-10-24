@@ -3,7 +3,7 @@
 > ✅ **Status: LIVE.** The admin portal is already deployed and in use at
 > **https://admin.verifyanagent.com**. This runbook is kept as the from-scratch
 > rebuild/reference. Live resources: admin Lambda `verifyanagent-admin`, fronted by an
-> **API Gateway HTTP API** at `https://4qinwlny78.execute-api.us-east-1.amazonaws.com`
+> **API Gateway HTTP API** at `https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com`
 > (Function URLs are blocked in this account — see Phase 3). Day-to-day updates are at the
 > bottom under *Updating things later*.
 
@@ -20,8 +20,8 @@ already use for `deploy.ps1`.
 | S3 bucket | `verifyanagent-agent-sites` |
 | IAM role ARN | `arn:aws:iam::123456789012:role/service-role/verifyanagent-function-role-tl3ru80t` |
 | IAM role name | `verifyanagent-function-role-tl3ru80t` |
-| Admin login email | `you@example.com` (hardcoded; password set at first login) |
-| Admin API endpoint | `https://4qinwlny78.execute-api.us-east-1.amazonaws.com` (API Gateway HTTP API) |
+| Admin login email | `you@example.com` (`ADMIN_EMAIL` Lambda env var; password set at first login) |
+| Admin API endpoint | `https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com` (API Gateway HTTP API) |
 
 ### Prerequisites (one-time)
 - AWS CLI installed and authenticated to account `123456789012`.
@@ -77,7 +77,7 @@ aws lambda get-function-configuration --function-name verifyanagent-function --q
 ```
 Open **`env.json`** (already in the repo, gitignored) and paste in `AIRTABLE_TOKEN`,
 `AIRTABLE_BASE_ID`, and `ANTHROPIC_API_KEY`, then replace `ADMIN_SESSION_SECRET` with any
-long random string you make up. (`S3_BUCKET` and `ADMIN_CORS_ORIGIN` are already filled.)
+long random string you make up, and set `ADMIN_EMAIL` to the one email allowed to sign in. (`S3_BUCKET` and `ADMIN_CORS_ORIGIN` are already filled.)
 
 Apply it:
 ```powershell
@@ -155,7 +155,7 @@ aws s3api get-bucket-cors --bucket verifyanagent-agent-sites
 Edit [admin/admin.js](admin/admin.js), the line with `API_BASE`, and set it to the **ApiEndpoint**
 from Phase 3 (no trailing slash). It is already baked into the repo for the live deployment:
 ```js
-const API_BASE = localStorage.getItem('apiBase') || 'https://4qinwlny78.execute-api.us-east-1.amazonaws.com';
+const API_BASE = localStorage.getItem('apiBase') || 'https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com';
 ```
 
 ### 5b. Upload the page

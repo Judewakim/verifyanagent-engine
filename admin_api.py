@@ -35,10 +35,10 @@ ssm = boto3.client('ssm')
 # ── Config ────────────────────────────────────────────────────────────────────
 TOKEN_TTL_SECONDS = 12 * 60 * 60   # 12 hours
 
-# There is exactly ONE admin account — Jude's. Login requires this email AND the
-# password. Hardcoding the identity here means no other account can ever be
-# created. Change this one line if you sign in with a different email.
-ADMIN_EMAIL = 'you@example.com'
+# There is exactly ONE admin account. Login requires this email AND the password,
+# so no other account can ever be created. Set ADMIN_EMAIL in the Lambda env.
+# Fails closed: if ADMIN_EMAIL is unset, no email matches and every login is refused.
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '').strip()
 
 # The password is NOT an env var — it's set by Jude on first sign-in and can be
 # changed in the portal. We store the salted PBKDF2 hash in SSM Parameter Store as a
@@ -200,6 +200,8 @@ def _valid_token(token):
 
 
 def _email_ok(email):
+    if not ADMIN_EMAIL:
+        return False  # fail closed: an unset ADMIN_EMAIL must never match an empty input
     return hmac.compare_digest((email or '').strip().lower(), ADMIN_EMAIL.lower())
 
 
