@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/verifyanagent-banner.png" alt="VerifyAnAgent — License Verification" width="700">
+</p>
+
 # VerifyAnAgent
 
 **Serverless pipeline that turns a Stripe payment into a live, verifiable license page for a life insurance agent — with no human in the loop.**
