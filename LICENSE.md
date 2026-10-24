@@ -6,7 +6,7 @@ FSL-1.1-ALv2
 
 ## Notice
 
-Copyright 2026 Jude Wakim
+Copyright 2026 Wakim Works
 
 ## Terms and Conditions
 
