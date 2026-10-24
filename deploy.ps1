@@ -122,7 +122,7 @@ Write-Host "    Runtime      : $($result.Runtime)"
 Write-Host ""
 if ($Function -eq 'admin') {
     Write-Host "Deployed the admin API. Ensure the Lambda handler is set to 'admin_api.handler'"
-    Write-Host "and these env vars exist: ADMIN_PASSWORD, ADMIN_SESSION_SECRET, ADMIN_CORS_ORIGIN,"
+    Write-Host "and these env vars exist: ADMIN_EMAIL, ADMIN_SESSION_SECRET, ADMIN_CORS_ORIGIN,"
     Write-Host "plus the shared AIRTABLE_TOKEN/AIRTABLE_BASE_ID/S3_BUCKET/ANTHROPIC_API_KEY."
 } else {
     Write-Host "Next: resend a checkout.session.completed event in Stripe Dashboard,"
@@ -131,12 +131,14 @@ if ($Function -eq 'admin') {
 
 # ── Optional: publish the admin static site ───────────────────────────────────
 if ($SyncAdmin) {
-    if (-not $env:ADMIN_SITE_BUCKET) {
-        throw "ADMIN_SITE_BUCKET not set. Add it to .env.deploy (the S3 bucket hosting admin.verifyanagent.com)."
-    }
+    # The admin page is served from the agent-sites bucket under the agents/admin/ prefix
+    # (the edge router maps admin.verifyanagent.com -> agents/admin). Sync ONLY that prefix,
+    # never the bucket root, so customer sites can never be touched or deleted.
+    $adminBucket = if ($env:ADMIN_SITE_BUCKET) { $env:ADMIN_SITE_BUCKET } else { 'verifyanagent-agent-sites' }
+    $adminTarget = "s3://$adminBucket/agents/admin"
     Write-Host ""
-    Write-Host "==> Syncing admin/ to s3://$($env:ADMIN_SITE_BUCKET)/ ..."
-    aws s3 sync admin "s3://$($env:ADMIN_SITE_BUCKET)" --delete | Out-Host
+    Write-Host "==> Syncing admin/ to $adminTarget ..."
+    aws s3 sync admin $adminTarget | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "aws s3 sync failed" }
     Write-Host "==> Admin site published."
 }

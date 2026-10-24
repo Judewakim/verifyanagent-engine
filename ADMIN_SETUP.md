@@ -1,7 +1,7 @@
 # Admin Web Editor — step-by-step setup
 
 > ✅ **Already deployed and live** at **https://admin.verifyanagent.com** (admin Lambda
-> `verifyanagent-admin` behind API Gateway `https://4qinwlny78.execute-api.us-east-1.amazonaws.com`).
+> `verifyanagent-admin` behind API Gateway `https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com`).
 > Keep this as the from-scratch rebuild reference; see [ADMIN_RUNBOOK.md](ADMIN_RUNBOOK.md)
 > for the detailed checklist and troubleshooting.
 
@@ -78,6 +78,7 @@ Create **`env.json`** (don't commit it) with those shared values plus the two ad
   "AIRTABLE_BASE_ID": "...",
   "S3_BUCKET": "verifyanagent-agent-sites",
   "ANTHROPIC_API_KEY": "...",
+  "ADMIN_EMAIL": "you@example.com",
   "ADMIN_SESSION_SECRET": "<paste-a-long-random-string>",
   "ADMIN_CORS_ORIGIN": "https://admin.verifyanagent.com",
   "TURNSTILE_SECRET": "<cloudflare-turnstile-secret-key>",
@@ -170,7 +171,7 @@ aws s3api put-bucket-cors --bucket verifyanagent-agent-sites --cors-configuratio
 ## Step 6 — Publish the admin page
 1. In [admin/admin.js](admin/admin.js), set `API_BASE` to the **ApiEndpoint** from Step 4
    (no trailing slash). For the live deployment it is already set to
-   `https://4qinwlny78.execute-api.us-east-1.amazonaws.com`.
+   `https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com`.
 2. Sync the page to the `agents/admin/` prefix (served automatically at
    `admin.verifyanagent.com`):
    ```powershell
@@ -182,7 +183,7 @@ aws s3api put-bucket-cors --bucket verifyanagent-agent-sites --cors-configuratio
 
 ## Step 7 — First sign-in & test
 1. Open **https://admin.verifyanagent.com** → "Set your admin password" (email is fixed to
-   `you@example.com`). Set it — stored in S3, changeable later under **Settings**.
+   `you@example.com`). Set it — hash stored in SSM Parameter Store, changeable later under **Settings**.
 2. Open a client → edit a field (try a Florida verify link) → **Save** → **Publish**.
 3. Hard-refresh the client's live site and confirm the change shows.
 
@@ -214,7 +215,7 @@ aws s3api put-bucket-cors --bucket verifyanagent-agent-sites --cors-configuratio
 - **Publish** re-runs your existing build for that one client and uploads to S3 — live
   immediately (uncached origin, no CDN invalidation).
 - Airtable stays the single source of truth; the portal never edits live HTML directly.
-- One account, locked to `ADMIN_EMAIL` in [admin_api.py](admin_api.py). Password is a
+- One account, locked to the `ADMIN_EMAIL` env var (read in [admin_api.py](admin_api.py)). Password is a
   salted PBKDF2 hash in `_admin/credentials.json` (private S3) — never in code or env.
 - **Every data field is editable**, including `name` and `npn`. Changing `name` moves the
   client to a new subdomain on publish (the editor warns you first).
