@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="1200" height="680" font-family="Archivo, Helvetica, Arial, sans-serif" role="img" aria-labelledby="t d">
+<title id="t">VerifyAnAgent architecture</title>
+<desc id="d">A public signup flow stores the record and uploads, Stripe Checkout takes payment, and a signed webhook drives a build Lambda that OCRs license certificates and publishes a verifiable agent page to S3.</desc>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#18222e"/></marker><marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1e6b52"/></marker></defs>
+<rect width="1200" height="680" fill="#ffffff"/>
+<rect x="20" y="20" width="1160" height="290" fill="#e9eef2" rx="6"/>
+<text x="40" y="50" font-size="18" font-weight="700" fill="#18222e">Signup  (public routes)</text>
+<text x="40" y="70" font-size="13" fill="#5b6875">Unauthenticated routes can only touch records still in the submitted state; uploads never pass through the API</text>
+<rect x="40" y="110" width="180" height="62" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="130.0" y="137" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">Signup form</text>
+<text x="130.0" y="157" text-anchor="middle" font-size="12" fill="#5b6875">honeypot, optional Turnstile</text>
+<rect x="280" y="110" width="200" height="62" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="380.0" y="137" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">Admin / Signup Lambda</text>
+<text x="380.0" y="157" text-anchor="middle" font-size="12" fill="#5b6875">public signup + admin API</text>
+<rect x="540" y="110" width="180" height="80" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="630.0" y="137" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">Airtable</text>
+<text x="630.0" y="157" text-anchor="middle" font-size="12" fill="#5b6875">agent record</text>
+<text x="630.0" y="175" text-anchor="middle" font-size="12" fill="#5b6875">status: submitted</text>
+<rect x="780" y="110" width="180" height="80" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="870.0" y="137" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">S3 uploads</text>
+<text x="870.0" y="157" text-anchor="middle" font-size="12" fill="#5b6875">private bucket</text>
+<text x="870.0" y="175" text-anchor="middle" font-size="12" fill="#5b6875">photos, cert PDFs</text>
+<rect x="40" y="226" width="180" height="80" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="130.0" y="253" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">Stripe Checkout</text>
+<text x="130.0" y="273" text-anchor="middle" font-size="12" fill="#5b6875">client_reference_id</text>
+<text x="130.0" y="291" text-anchor="middle" font-size="12" fill="#5b6875">= record ID</text>
+<rect x="280" y="226" width="200" height="80" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="380.0" y="253" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">SSM Parameter Store</text>
+<text x="380.0" y="273" text-anchor="middle" font-size="12" fill="#5b6875">admin password hash</text>
+<text x="380.0" y="291" text-anchor="middle" font-size="12" fill="#5b6875">KMS SecureString</text>
+<polyline points="220,141 280,141" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="250" y="133" text-anchor="middle" font-size="11.5" fill="#5b6875">POST</text>
+<polyline points="480,141 540,141" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<polyline points="380,172 380,226" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<polyline points="130,172 130,226" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="138" y="203" text-anchor="start" font-size="11.5" fill="#5b6875">pay</text>
+<polyline points="130,110 130,92 870,92 870,110" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="860" y="86" text-anchor="end" font-size="11.5" fill="#5b6875">presigned PUT, short-lived</text>
+<text x="1000" y="120" font-size="13" fill="#5b6875">Operator:</text>
+<text x="1000" y="142" font-size="12.5" fill="#18222e">single admin account</text>
+<text x="1000" y="162" font-size="12.5" fill="#18222e">PBKDF2-SHA256,</text>
+<text x="1000" y="182" font-size="12.5" fill="#18222e">200k iterations</text>
+<text x="1000" y="202" font-size="12.5" fill="#18222e">fails closed if</text>
+<text x="1000" y="222" font-size="12.5" fill="#18222e">email is unset</text>
+<rect x="20" y="330" width="1160" height="330" fill="#e9eef2" rx="6"/>
+<text x="40" y="360" font-size="18" font-weight="700" fill="#18222e">Build  (Stripe webhook to live site, no human in the loop)</text>
+<text x="40" y="380" font-size="13" fill="#5b6875">Payment is joined by record ID, not email, so a different billing email can&#x27;t break or hijack a build</text>
+<rect x="40" y="420" width="180" height="62" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="130.0" y="447" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">API Gateway</text>
+<text x="130.0" y="467" text-anchor="middle" font-size="12" fill="#5b6875">webhook endpoint</text>
+<rect x="280" y="420" width="200" height="164" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="380.0" y="447" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">Build Lambda</text>
+<text x="380.0" y="467" text-anchor="middle" font-size="12" fill="#5b6875">1 verify Stripe signature</text>
+<text x="380.0" y="485" text-anchor="middle" font-size="12" fill="#5b6875">2 load record by ID</text>
+<text x="380.0" y="503" text-anchor="middle" font-size="12" fill="#5b6875">3 OCR each cert</text>
+<text x="380.0" y="521" text-anchor="middle" font-size="12" fill="#5b6875">4 build 50-state cards</text>
+<text x="380.0" y="539" text-anchor="middle" font-size="12" fill="#5b6875">5 render Jinja2</text>
+<text x="380.0" y="557" text-anchor="middle" font-size="12" fill="#5b6875">6 sitemap + directory</text>
+<rect x="540" y="420" width="180" height="80" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="630.0" y="447" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">Anthropic API</text>
+<text x="630.0" y="467" text-anchor="middle" font-size="12" fill="#5b6875">Claude Haiku vision</text>
+<text x="630.0" y="485" text-anchor="middle" font-size="12" fill="#5b6875">structured cert OCR</text>
+<rect x="540" y="530" width="180" height="80" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="630.0" y="557" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">S3 site bucket</text>
+<text x="630.0" y="577" text-anchor="middle" font-size="12" fill="#5b6875">{slug}.verifyanagent.com</text>
+<text x="630.0" y="595" text-anchor="middle" font-size="12" fill="#5b6875">+ sitemap, directory</text>
+<rect x="780" y="530" width="180" height="80" rx="5" fill="#fff" stroke="#18222e" stroke-width="1.5"/>
+<text x="870.0" y="557" text-anchor="middle" font-size="14" font-weight="700" fill="#18222e">Slack</text>
+<text x="870.0" y="577" text-anchor="middle" font-size="12" fill="#5b6875">only if OCR or the name</text>
+<text x="870.0" y="595" text-anchor="middle" font-size="12" fill="#5b6875">check needs a human</text>
+<polyline points="130,306 130,420" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="138" y="406" text-anchor="start" font-size="11.5" fill="#5b6875">checkout.session.completed</text>
+<polyline points="220,451 280,451" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<polyline points="480,451 540,451" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<polyline points="480,561 540,561" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<polyline points="380,584 380,640 870,640 870,592" fill="none" stroke="#18222e" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="760" y="634" text-anchor="middle" font-size="11.5" fill="#5b6875">operator alert</text>
+<polyline points="450,420 450,400 630,400 630,190" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="638" y="260" text-anchor="start" font-size="11.5" fill="#5b6875">load by record ID</text>
+<polyline points="470,420 470,408 890,408 890,190" fill="none" stroke="#18222e" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="898" y="260" text-anchor="start" font-size="11.5" fill="#5b6875">read certs</text>
+<text x="1000" y="440" font-size="13" fill="#5b6875">Every build:</text>
+<text x="1000" y="462" font-size="12.5" fill="#18222e">signature checked first</text>
+<text x="1000" y="482" font-size="12.5" fill="#18222e">joined by record ID</text>
+<text x="1000" y="502" font-size="12.5" fill="#18222e">links to each state&#x27;s</text>
+<text x="1000" y="522" font-size="12.5" fill="#18222e">official lookup</text>
+<text x="1000" y="542" font-size="12.5" fill="#18222e">human review only</text>
+<text x="1000" y="562" font-size="12.5" fill="#18222e">on anomalies</text>
+</svg>

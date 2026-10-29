@@ -17,6 +17,11 @@ An agent signs up, pays, and minutes later has a site at `https://{name}.verifya
 
 ## Architecture
 
+![VerifyAnAgent architecture](docs/architecture.svg)
+
+<details>
+<summary>Text version of the diagram</summary>
+
 ```
 Signup form ──POST /signup──▶ Admin/Signup Lambda ──▶ Airtable (record: submitted)
      │                               │
@@ -36,6 +41,8 @@ API Gateway ──▶ Build Lambda
                   6. Regenerate sitemap.xml + public agent directory
                   7. Slack alert if anything needs human review
 ```
+
+</details>
 
 | Component | Files |
 |---|---|
